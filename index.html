@@ -85,8 +85,11 @@ details.info > summary::before { content: "▸"; color: var(--muted); font-size:
 details.info[open] > summary::before { transform: rotate(90deg); }
 details.info > .info-body { display: grid; gap: 12px; margin-top: 12px; }
 .pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; }
-.dockdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #1a73e8; box-shadow: 0 0 0 1.5px #fff inset; }
-#dockLabel { width: auto; flex: 1 1 160px; padding: 6px 9px; }
+.poidot { display: inline-block; flex: none; margin-left: 3px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--line); }
+.pois { display: grid; gap: 8px; }
+.poirow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.poirow input[type=text] { width: auto; flex: 1 1 170px; padding: 6px 9px; }
+.poirow .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 textarea { resize: vertical; min-height: 64px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hint { font-size: .82rem; color: var(--muted); margin: 0; }
@@ -276,7 +279,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
             <div class="seg" role="group" aria-labelledby="toolLbl" id="toolSeg">
               <button type="button" data-v="pan" aria-pressed="true">Déplacer</button>
               <button type="button" data-v="arrow" aria-pressed="false"><span class="swatch"></span> Flèche</button>
-              <button type="button" data-v="dock" aria-pressed="false" id="dockTool"><span class="dockdot"></span> Accès technique</button>
             </div>
             <button type="button" class="btn sm" id="undo">Annuler</button>
             <button type="button" class="btn sm" id="clear">Effacer les flèches</button>
@@ -287,11 +289,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <label class="check" for="pin"><input type="checkbox" id="pin" checked> Repère rouge avec le nom du lieu</label>
           <button type="button" class="btn sm" id="recenter">Recentrer sur le repère</button>
         </div>
-        <div class="toolbar" id="dockOpts">
-          <span class="lbl"><span class="dockdot"></span> Accès technique</span>
-          <input type="text" id="dockLabel" value="Accès technique / déchargement" aria-label="Libellé du repère accès technique">
-          <button type="button" class="btn sm" id="dockClear" disabled>Retirer</button>
-          <p class="hint" id="dockHint" style="flex:1 1 100%">Choisissez l’outil « Accès technique », puis touchez le plan à l’endroit du quai ou de l’entrée des artistes.</p>
+        <div class="pois" id="poiOpts">
+          <span class="lbl">Points utiles</span>
+          <div class="pois" id="poiList"></div>
+          <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Chaque point a ses propres liens d’itinéraire dans le message.</p>
         </div>
         <div class="toolbar" id="shotOpts" hidden>
           <label class="btn sm" for="shotFile">Choisir une capture…</label>
@@ -531,10 +532,19 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   const st = {
     place: null, center: null, zoom: 18, roads: true, pin: true, bg: "sat", tool: "pan",
     arrows: { sat: [], shot: [] }, shot: null, live: null,
-    dock: null, // { lat, lng } of the technical access / loading dock
+    pois: {},      // key -> { lat, lng } for each useful point placed on the map
+    placing: null, // key of the point being placed
   };
-  const DOCK_DEFAULT = "Accès technique / déchargement";
-  const dockLabel = () => $("dockLabel").value.trim() || DOCK_DEFAULT;
+  // Useful points: add a line here to offer another kind of point.
+  const POI_TYPES = [
+    { key: "dock", name: "Accès technique", label: "Accès technique / déchargement", emoji: "\u{1F69A}", fill: "#1a73e8", stroke: "#0b4ea2" },
+    { key: "staff", name: "Accès personnel", label: "Accès personnel", emoji: "\u{1F6AA}", fill: "#188038", stroke: "#0d5a26" },
+    { key: "catering", name: "Catering", label: "Catering", emoji: "\u{1F37D}\u{FE0F}", fill: "#e8710a", stroke: "#a34f06" },
+    { key: "parking", name: "Parking personnel", label: "Parking personnel", emoji: "\u{1F17F}\u{FE0F}", fill: "#8e24aa", stroke: "#5c1570" },
+    { key: "loges", name: "Loges", label: "Loges", emoji: "\u{1F3AD}", fill: "#00897b", stroke: "#005a50" },
+  ];
+  const poiLabel = (t) => ($("poiLabel-" + t.key) ? $("poiLabel-" + t.key).value.trim() : "") || t.label;
+  const placedPois = () => POI_TYPES.filter((t) => st.pois[t.key]);
 
   function project(lat, lng) {
     const s = Math.sin(lat * Math.PI / 180);
@@ -601,7 +611,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   }
   const PIN = {
     main: { fill: "#ea4335", stroke: "#a52714", dot: "#6e1409" },
-    dock: { fill: "#1a73e8", stroke: "#0b4ea2", dot: "#ffffff" },
   };
   function drawPin(ctx, x, y, s, col) {
     col = col || PIN.main;
@@ -741,10 +750,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         if (failed && !standalone && layers[0].every((i) => !i.t.ok)) message(ctx, W, H, "L’imagerie satellite ne peut pas se charger dans Claude. Utilisez « Version hors ligne » et ouvrez le fichier dans Safari, ou passez à Ma capture.");
         st.arrows.sat.forEach((a) => drawArrow(ctx, a.map((p) => toOut(v, p)), s));
         if (st.live && st.bg === "sat") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
-        if (st.dock) {
-          const dp = toOut(v, project(st.dock.lat, st.dock.lng));
-          pinLabel(ctx, dp, drawPin(ctx, dp[0], dp[1], s, PIN.dock), dockLabel(), s);
-        }
+        placedPois().forEach((t) => {
+          const pt = st.pois[t.key], dp = toOut(v, project(pt.lat, pt.lng));
+          pinLabel(ctx, dp, drawPin(ctx, dp[0], dp[1], s, { fill: t.fill, stroke: t.stroke, dot: "#ffffff" }), poiLabel(t), s);
+        });
         if (st.pin && st.place) {
           const pp = toOut(v, project(st.place.lat, st.place.lng));
           const pin = drawPin(ctx, pp[0], pp[1], s);
@@ -808,12 +817,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   els.sheet.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     const p = canvasPt(e), v = curView();
-    if (st.tool === "dock") {
+    if (st.tool === "poi" && st.placing) {
       if (st.bg !== "sat" || !st.center) return;
       const w = fromOut(v, p[0], p[1]);
-      st.dock = unproject(w[0], w[1]);
-      drag = { mode: "dock" };
-      syncDock(); schedule();
+      st.pois[st.placing] = unproject(w[0], w[1]);
+      drag = { mode: "poi", key: st.placing };
+      syncPois(); schedule();
     } else if (st.tool === "arrow") {
       if (st.bg === "sat" && !st.center) return;
       st.live = [fromOut(v, p[0], p[1])];
@@ -831,9 +840,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const p = canvasPt(e);
     if (drag.mode === "pan") {
       st.center = unproject(drag.c0[0] - (p[0] - drag.start[0]) / drag.k, drag.c0[1] - (p[1] - drag.start[1]) / drag.k);
-    } else if (drag.mode === "dock") {
+    } else if (drag.mode === "poi") {
       const w = fromOut(curView(), p[0], p[1]);
-      st.dock = unproject(w[0], w[1]);
+      st.pois[drag.key] = unproject(w[0], w[1]);
     } else {
       const minStep = els.sheet.width * 0.006;
       if (Math.hypot(p[0] - drag.last[0], p[1] - drag.last[1]) < minStep) return;
@@ -844,10 +853,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   function endDrag() {
     if (!drag) return;
     if (drag.mode === "arrow" && st.live && st.live.length >= 3) st.arrows[st.bg].push(st.live);
-    if (drag.mode === "dock") {
-      setTool("pan");
+    if (drag.mode === "poi") {
+      const t = POI_TYPES.find((x) => x.key === drag.key);
+      st.placing = null; setTool("pan"); syncPois();
       updateMessage();
-      say("Accès technique placé. Rechoisissez l’outil pour le déplacer.", "ok");
+      say("Point placé : " + t.name + ". Touchez « Déplacer » sur sa ligne pour le changer de place.", "ok");
     }
     st.live = null; drag = null;
     els.sheet.classList.remove("dragging");
@@ -879,26 +889,53 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     });
   }
   segment("bgSeg", (v) => {
-    st.bg = v; $("satOpts").hidden = v !== "sat"; $("dockOpts").hidden = v !== "sat"; $("shotOpts").hidden = v !== "shot"; $("zoomGroup").hidden = v !== "sat";
-    $("dockTool").hidden = v !== "sat";
-    if (v !== "sat" && st.tool === "dock") setTool("pan");
+    st.bg = v; $("satOpts").hidden = v !== "sat"; $("poiOpts").hidden = v !== "sat"; $("shotOpts").hidden = v !== "shot"; $("zoomGroup").hidden = v !== "sat";
+    if (v !== "sat" && st.tool === "poi") { st.placing = null; setTool("pan"); syncPois(); }
     syncTool(); schedule();
   });
-  segment("toolSeg", (v) => { st.tool = v; syncTool(); });
+  segment("toolSeg", (v) => { st.tool = v; st.placing = null; syncPois(); syncTool(); });
   function setTool(v) {
     st.tool = v;
     $("toolSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === v)));
     syncTool();
   }
-  function syncTool() { els.sheet.classList.toggle("drawing", st.tool === "arrow" || st.tool === "dock" || st.bg === "shot"); }
-  function syncDock() {
-    $("dockClear").disabled = !st.dock;
-    $("dockHint").textContent = st.dock
-      ? "Repère bleu sur le plan. Ajouté au message avec ses propres liens d’itinéraire."
-      : "Choisissez l’outil « Accès technique », puis touchez le plan à l’endroit du quai ou de l’entrée des artistes.";
+  function syncTool() { els.sheet.classList.toggle("drawing", st.tool === "arrow" || st.tool === "poi" || st.bg === "shot"); }
+  // One row per kind of point: colour, editable label, Placer/Déplacer, Retirer
+  POI_TYPES.forEach((t) => {
+    const row = document.createElement("div");
+    row.className = "poirow";
+    row.innerHTML = `<span class="poidot" style="background:${t.fill}"></span>`
+      + `<input type="text" id="poiLabel-${t.key}" aria-label="Libellé du point ${t.name}">`
+      + `<button type="button" class="btn sm" id="poiPlace-${t.key}" aria-pressed="false"></button>`
+      + `<button type="button" class="btn sm" id="poiClear-${t.key}">Retirer</button>`;
+    $("poiList").appendChild(row);
+    $("poiLabel-" + t.key).value = t.label;
+    $("poiLabel-" + t.key).addEventListener("input", () => { updateMessage(); schedule(); });
+    $("poiPlace-" + t.key).addEventListener("click", () => {
+      if (st.placing === t.key) { st.placing = null; setTool("pan"); }
+      else {
+        if (!st.center) { say("Placez d’abord le lieu sur la carte.", "warn"); return; }
+        st.placing = t.key; st.tool = "poi";
+        $("toolSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", "false"));
+        syncTool();
+        say("Touchez le plan à l’endroit : " + poiLabel(t) + ".");
+      }
+      syncPois();
+    });
+    $("poiClear-" + t.key).addEventListener("click", () => {
+      delete st.pois[t.key];
+      if (st.placing === t.key) { st.placing = null; setTool("pan"); }
+      syncPois(); updateMessage(); schedule(); say("Point retiré : " + t.name + ".");
+    });
+  });
+  function syncPois() {
+    POI_TYPES.forEach((t) => {
+      const placing = st.placing === t.key, b = $("poiPlace-" + t.key);
+      b.textContent = placing ? "Touchez le plan…" : st.pois[t.key] ? "Déplacer" : "Placer";
+      b.setAttribute("aria-pressed", String(placing));
+      $("poiClear-" + t.key).disabled = !st.pois[t.key];
+    });
   }
-  $("dockClear").addEventListener("click", () => { st.dock = null; syncDock(); updateMessage(); schedule(); say("Accès technique retiré."); });
-  $("dockLabel").addEventListener("input", () => { updateMessage(); schedule(); });
   segment("layout", (v) => { layout = v; render(); });
 
   // Location
@@ -912,7 +949,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   function setPlace(p, note) {
     if (st.place) {
       const a = project(st.place.lat, st.place.lng), b = project(p.lat, p.lng);
-      if (Math.hypot(a[0] - b[0], a[1] - b[1]) * Math.pow(2, 18) > 1500) { st.arrows.sat = []; st.dock = null; syncDock(); } // moved far: old arrows and access no longer apply
+      if (Math.hypot(a[0] - b[0], a[1] - b[1]) * Math.pow(2, 18) > 1500) { st.arrows.sat = []; st.pois = {}; syncPois(); } // moved far: old arrows and points no longer apply
     }
     st.place = p; st.center = { ...p };
     render();
@@ -1018,10 +1055,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     lines.push("");
     if (links) lines.push("Itinéraire :");
     lines.push(...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr));
-    if (st.dock) {
-      const dock = routeLines(st.dock, dockLabel(), "");
-      if (dock.length) lines.push("", "\u{1F69A} " + dockLabel() + " :", ...dock);
-    }
+    placedPois().forEach((t) => {
+      const r = routeLines(st.pois[t.key], poiLabel(t), "");
+      if (r.length) lines.push("", t.emoji + " " + poiLabel(t) + " :", ...r);
+    });
     while (lines.length && lines[lines.length - 1] === "") lines.pop();
     return lines.join("\n");
   }
@@ -1035,7 +1072,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("msgMail").href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text);
     $("msgMail").hidden = !standalone;
     $("msgHint").textContent = st.place
-      ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (st.dock ? " L’accès technique a ses propres liens." : "")
+      ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (placedPois().length ? " Chaque point utile a ses propres liens." : "")
       : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
   }
   ["lkGoogle", "lkWaze", "lkApple", "lkGps"].forEach((id) => $(id).addEventListener("change", updateMessage));
@@ -1110,7 +1147,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (!$("msgShare").hidden) $("msgCopy").classList.remove("primary");
   }
   function shareSig() {
-    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.dock, dockLabel(), $("infoOnSheet").checked, infoRows()]);
+    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows()]);
   }
   let prepared = null; // { sig, file } — iOS only opens the share sheet right after a tap, so a slow render is done first
   async function sheetFile() {
@@ -1199,7 +1236,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   const start = parseCoords(els.coords.value);
   if (start) { st.place = start; st.center = { ...start }; }
   $("sheetNote").textContent = standalone ? "" : "Le satellite et la recherche d’adresse demandent la version hors ligne";
-  syncTool(); syncDock();
+  syncTool(); syncPois();
   render(); fontState();
   if (document.fonts && document.fonts.load) {
     Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('400 40px "TemplateGothicHosted"').catch(() => [])]).then(() => { render(); fontState(); }, () => {});
