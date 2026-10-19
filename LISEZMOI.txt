@@ -8,7 +8,7 @@ Easy Route ! — mise en ligne
 2. Sur l'iPhone
    Ouvrez l'adresse dans Safari > Partager > « Sur l'écran d'accueil ».
 
-3. Police Template Gothic (facultatif)
-   Copiez votre fichier dans le dossier fonts/ sous le nom TemplateGothic.ttf
-   (ou TemplateGothic.otf / TemplateGothic.woff2). Vérifiez que votre licence
-   autorise l'usage web. Sans ce fichier, une police de remplacement est utilisée.
+3. Police de l'étiquette (facultatif)
+   Barlow par défaut. Dans l'outil, « Charger une police » accepte un fichier
+   .ttf / .otf / .woff2, mémorisé sur l'appareil. Ne mettez pas de police
+   commerciale dans le dépôt public.
