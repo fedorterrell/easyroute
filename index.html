@@ -540,6 +540,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     { key: "dock", name: "Accès technique", label: "Accès technique / déchargement", emoji: "\u{1F69A}", fill: "#1a73e8", stroke: "#0b4ea2" },
     { key: "staff", name: "Accès personnel", label: "Accès personnel", emoji: "\u{1F6AA}", fill: "#188038", stroke: "#0d5a26" },
     { key: "catering", name: "Catering", label: "Catering", emoji: "\u{1F37D}\u{FE0F}", fill: "#e8710a", stroke: "#a34f06" },
+    { key: "parking", name: "Parking personnel", label: "Parking personnel", emoji: "\u{1F17F}\u{FE0F}", fill: "#8e24aa", stroke: "#5c1570" },
+    { key: "loges", name: "Loges", label: "Loges", emoji: "\u{1F3AD}", fill: "#00897b", stroke: "#005a50" },
   ];
   const poiLabel = (t) => ($("poiLabel-" + t.key) ? $("poiLabel-" + t.key).value.trim() : "") || t.label;
   const placedPois = () => POI_TYPES.filter((t) => st.pois[t.key]);
@@ -855,7 +857,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       const t = POI_TYPES.find((x) => x.key === drag.key);
       st.placing = null; setTool("pan"); syncPois();
       updateMessage();
-      say(t.name + " placé. Touchez « Déplacer » sur sa ligne pour le changer de place.", "ok");
+      say("Point placé : " + t.name + ". Touchez « Déplacer » sur sa ligne pour le changer de place.", "ok");
     }
     st.live = null; drag = null;
     els.sheet.classList.remove("dragging");
@@ -923,7 +925,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("poiClear-" + t.key).addEventListener("click", () => {
       delete st.pois[t.key];
       if (st.placing === t.key) { st.placing = null; setTool("pan"); }
-      syncPois(); updateMessage(); schedule(); say(t.name + " retiré.");
+      syncPois(); updateMessage(); schedule(); say("Point retiré : " + t.name + ".");
     });
   });
   function syncPois() {
