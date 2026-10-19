@@ -358,7 +358,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       </div>
 
       <p class="status" id="status" role="status"></p>
-      <p class="hint" id="footHint">Imagerie satellite : Esri World Imagery. Recherche d’adresse : OpenStreetMap Nominatim. La carte QR est placée en bas à gauche, à sa taille d’impression réelle.</p>
+      <p class="hint" id="footHint">Imagerie satellite : Esri World Imagery. Recherche d’adresse : OpenStreetMap Nominatim. La carte QR est placée en haut à gauche, à sa taille d’impression réelle, et les infos pratiques en bas à gauche.</p>
     </section>
   </div>
 </div>
@@ -778,9 +778,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     // QR card, bottom-left, true print size
     const L = current.sheetLabel;
     const m = mmPx(5) * s;
-    drawInfoCard(ctx, L ? m + L.W * s + mmPx(4) * s : m, H - m, W - m, s);
+    drawInfoCard(ctx, m, H - m, W - m, s); // practical info: bottom-left
     if (L) {
-      const cw = L.W * s, ch = L.H * s, x = m, y = H - m - ch, r = mmPx(3) * s;
+      const cw = L.W * s, ch = L.H * s, x = m, y = m, r = mmPx(3) * s; // QR card: top-left
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
       roundRect(ctx, x, y, cw, ch, r); ctx.fillStyle = "#fff"; ctx.fill();
