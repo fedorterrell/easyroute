@@ -13,9 +13,6 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <style>
-/* Optional: put your Template Gothic file in fonts/ with one of these names */
-@font-face { font-family: "TemplateGothicHosted"; font-display: swap;
-  src: url("fonts/TemplateGothic.woff2") format("woff2"), url("fonts/TemplateGothic.ttf") format("truetype"), url("fonts/TemplateGothic.otf") format("opentype"); }
 body { padding-top: max(24px, env(safe-area-inset-top, 0px)) !important; padding-bottom: max(40px, env(safe-area-inset-bottom, 0px)) !important; }
 </style>
 </head>
@@ -85,6 +82,10 @@ details.info > summary::before { content: "▸"; color: var(--muted); font-size:
 details.info[open] > summary::before { transform: rotate(90deg); }
 details.info > .info-body { display: grid; gap: 12px; margin-top: 12px; }
 .pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; }
+.linkgrid { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, minmax(46px, max-content)); align-items: center; gap: 6px 10px; }
+.linkgrid .lh { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: center; }
+.linkgrid .ln { display: flex; align-items: center; gap: 8px; font-size: .9rem; min-width: 0; overflow-wrap: anywhere; }
+.linkgrid input { justify-self: center; width: 18px; height: 18px; margin: 0; }
 .poidot { display: inline-block; flex: none; margin-left: 3px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--line); }
 .pois { display: grid; gap: 8px; }
 .poirow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -236,8 +237,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 
       <div class="field">
         <span class="lbl">Police de l’étiquette</span>
-        <p class="hint" id="fontState">Recherche de Template Gothic…</p>
-        <label class="btn sm" for="fontFile" style="justify-self:start">Charger la police (.ttf / .otf)</label>
+        <p class="hint" id="fontState">Police par défaut : Barlow.</p>
+        <div class="actions">
+          <label class="btn sm" for="fontFile">Charger une police (.ttf / .otf)</label>
+          <button type="button" class="btn sm" id="fontReset" hidden>Police par défaut</button>
+        </div>
         <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
       </div>
       <label class="check" for="showUrl"><input type="checkbox" id="showUrl"> Imprimer le lien sous l’adresse</label>
@@ -334,12 +338,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 
       <div id="paneMsg" class="pane" role="tabpanel" aria-labelledby="tabMsg" hidden>
         <p class="hint">Pour WhatsApp ou l’e-mail. Sur le téléphone, chaque lien s’ouvre directement dans l’application. Joignez le plan A4 en JPG pour que l’équipe voie aussi l’accès. Les infos pratiques se remplissent à gauche.</p>
-        <div class="row" style="align-items:center">
-          <span class="lbl">Liens</span>
-          <label class="check" for="lkGoogle"><input type="checkbox" id="lkGoogle" checked> Google Maps</label>
-          <label class="check" for="lkWaze"><input type="checkbox" id="lkWaze" checked> Waze</label>
-          <label class="check" for="lkApple"><input type="checkbox" id="lkApple" checked> Plans (Apple)</label>
-          <label class="check" for="lkGps"><input type="checkbox" id="lkGps" checked> Coordonnées GPS</label>
+        <div class="field">
+          <span class="lbl" id="linkLbl">Liens d’itinéraire</span>
+          <div class="linkgrid" id="linkGrid" role="group" aria-labelledby="linkLbl"></div>
+          <p class="hint">Cochez les liens utiles pour chaque point. Un point sans case cochée n’apparaît pas dans le message. Vos choix sont mémorisés.</p>
         </div>
         <label class="check share" for="msgWithSheet" hidden><input type="checkbox" id="msgWithSheet" checked> Joindre le plan A4 (JPG) au partage</label>
         <div class="field">
@@ -368,7 +370,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   const els = { name: $("name"), addr: $("addr"), useName: $("useName"), custom: $("custom"), coords: $("coords"), qrmm: $("qrmm"), dpi: $("dpi"), showUrl: $("showUrl"), url: $("url"), open: $("open"), out: $("out"), meta: $("meta"), status: $("status"), sheet: $("sheet") };
   const standalone = !(window.claude && typeof window.claude.use === "function");
 
-  const SANS = '"TemplateGothicLoaded", "TemplateGothicHosted", "TemplateGothicReg", "Template Gothic", "TemplateGothic", "Barlow", system-ui, sans-serif';
+  const SANS = '"CustomLabelFont", "Barlow", system-ui, sans-serif';
   const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
   let layout = "side";
@@ -491,7 +493,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       if (qr.isDark(r, col)) path += `M${(qx + (col + quiet) * cell).toFixed(2)} ${(qy + (r + quiet) * cell).toFixed(2)}h${cell.toFixed(2)}v${cell.toFixed(2)}h-${cell.toFixed(2)}z`;
     }
     const anchor = tx === null ? ' text-anchor="middle"' : "";
-    const texts = svgText.map((t) => `<text x="${t.x.toFixed(1)}" y="${t.y.toFixed(1)}" font-family="${t.b.mono ? "JetBrains Mono, Menlo, monospace" : "TemplateGothicReg, Template Gothic, Helvetica, Arial, sans-serif"}" font-size="${t.b.size}" fill="${t.b.color}"${anchor}>${esc(t.l)}</text>`).join("");
+    const texts = svgText.map((t) => `<text x="${t.x.toFixed(1)}" y="${t.y.toFixed(1)}" font-family="${t.b.mono ? "JetBrains Mono, Menlo, monospace" : "Barlow, Helvetica, Arial, sans-serif"}" font-size="${t.b.size}" fill="${t.b.color}"${anchor}>${esc(t.l)}</text>`).join("");
     const mmW = (W / dpi * 25.4).toFixed(1), mmH = (H / dpi * 25.4).toFixed(1);
     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${mmW}mm" height="${mmH}mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><a href="${esc(url)}" xlink:href="${esc(url)}" target="_blank"><path d="${path}" fill="#000"/>${texts}</a></svg>`;
     return { canvas: c, svg, W, H, n, mmW, mmH, dpi };
@@ -1085,14 +1087,41 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 
   // ---------- Team message ----------
   // Route links to a point (or to a text search when there is no point)
-  function routeLines(p, title, search) {
+  // Which links each point gets in the message: key -> { g: Google Maps, w: Waze, a: Plans, gps: coordinates }
+  const LINK_COLS = [["g", "Google", "Google Maps"], ["w", "Waze", "Waze"], ["a", "Plans", "Plans (Apple)"], ["gps", "GPS", "Coordonnées GPS"]];
+  const linkSel = { main: { g: true, w: true, a: true, gps: false } };
+  POI_TYPES.forEach((t) => { linkSel[t.key] = { g: true, w: true, a: false, gps: false }; });
+  try { const saved = JSON.parse(localStorage.getItem("easyroute.links") || "null"); if (saved) Object.keys(linkSel).forEach((k) => Object.assign(linkSel[k], saved[k] || {})); } catch (_) {}
+  (function buildLinkGrid() {
+    const g = $("linkGrid");
+    g.insertAdjacentHTML("beforeend", "<span></span>" + LINK_COLS.map((c) => `<span class="lh" title="${c[2]}">${c[1]}</span>`).join(""));
+    [{ key: "main", name: "Lieu", dot: "#ea4335" }, ...POI_TYPES.map((t) => ({ key: t.key, name: t.name, dot: t.fill }))].forEach((r) => {
+      const cells = [`<span class="ln" data-row="${r.key}"><span class="poidot" style="background:${r.dot}"></span><span data-name="${r.key}">${r.name}</span></span>`]
+        .concat(LINK_COLS.map((c) => `<input type="checkbox" id="lk-${r.key}-${c[0]}" data-row="${r.key}" aria-label="${c[2]} pour ${r.name}"${linkSel[r.key][c[0]] ? " checked" : ""}>`));
+      g.insertAdjacentHTML("beforeend", cells.join(""));
+      LINK_COLS.forEach((c) => $(`lk-${r.key}-${c[0]}`).addEventListener("change", (e) => {
+        linkSel[r.key][c[0]] = e.target.checked;
+        try { localStorage.setItem("easyroute.links", JSON.stringify(linkSel)); } catch (_) {}
+        updateMessage();
+      }));
+    });
+  })();
+  function syncLinkGrid() {
+    POI_TYPES.forEach((t) => {
+      const placed = !!st.pois[t.key];
+      $("linkGrid").querySelectorAll(`[data-row="${t.key}"]`).forEach((el) => { el.hidden = !placed; });
+      const n = $("linkGrid").querySelector(`[data-name="${t.key}"]`); if (n) n.textContent = poiLabel(t);
+    });
+  }
+  const anyLink = (sel) => sel.g || sel.w || sel.a || sel.gps;
+  function routeLines(p, title, search, sel) {
     const out = [];
     const ll = p ? p.lat.toFixed(6) + "," + p.lng.toFixed(6) : "";
-    const links = $("lkGoogle").checked || $("lkWaze").checked || $("lkApple").checked;
-    if ($("lkGoogle").checked) out.push("", "Google Maps :", "https://www.google.com/maps/search/?api=1&query=" + (p ? ll : encodeURIComponent(search)));
-    if ($("lkWaze").checked) out.push("", "Waze :", p ? "https://waze.com/ul?ll=" + ll + "&navigate=yes" : "https://waze.com/ul?q=" + encodeURIComponent(search) + "&navigate=yes");
-    if ($("lkApple").checked) out.push("", "Plans (Apple) :", p ? "https://maps.apple.com/?ll=" + ll + "&q=" + encodeURIComponent(title || "Lieu") : "https://maps.apple.com/?q=" + encodeURIComponent(search));
-    if ($("lkGps").checked && p) out.push(...(links ? [""] : []), "Coordonnées GPS : " + p.lat.toFixed(6) + ", " + p.lng.toFixed(6));
+    const links = sel.g || sel.w || sel.a;
+    if (sel.g) out.push("", "Google Maps :", "https://www.google.com/maps/search/?api=1&query=" + (p ? ll : encodeURIComponent(search)));
+    if (sel.w) out.push("", "Waze :", p ? "https://waze.com/ul?ll=" + ll + "&navigate=yes" : "https://waze.com/ul?q=" + encodeURIComponent(search) + "&navigate=yes");
+    if (sel.a) out.push("", "Plans (Apple) :", p ? "https://maps.apple.com/?ll=" + ll + "&q=" + encodeURIComponent(title || "Lieu") : "https://maps.apple.com/?q=" + encodeURIComponent(search));
+    if (sel.gps && p) out.push(...(links ? [""] : []), "Coordonnées GPS : " + p.lat.toFixed(6) + ", " + p.lng.toFixed(6));
     return out;
   }
   function messageText() {
@@ -1102,12 +1131,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
     const info = infoRows();
     if (info.length) lines.push("", ...info.map(([k, v, icon]) => icon + " " + k + " : " + v));
-    const links = $("lkGoogle").checked || $("lkWaze").checked || $("lkApple").checked;
     lines.push("");
-    if (links) lines.push("Itinéraire :");
-    lines.push(...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr));
+    if (anyLink(linkSel.main)) lines.push("Itinéraire :", ...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr, linkSel.main));
     placedPois().forEach((t) => {
-      const r = routeLines(st.pois[t.key], poiLabel(t), "");
+      if (!anyLink(linkSel[t.key])) return;
+      const r = routeLines(st.pois[t.key], poiLabel(t), "", linkSel[t.key]);
       if (r.length) lines.push("", t.emoji + " " + poiLabel(t) + " :", ...r);
     });
     while (lines.length && lines[lines.length - 1] === "") lines.pop();
@@ -1115,6 +1143,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   }
   function updateMessage() {
     if (!$("msg")) return;
+    syncLinkGrid();
     const text = messageText();
     $("msg").value = text;
     $("msgWa").href = "https://wa.me/?text=" + encodeURIComponent(text);
@@ -1126,7 +1155,6 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (placedPois().length ? " Chaque point utile a ses propres liens." : "")
       : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
   }
-  ["lkGoogle", "lkWaze", "lkApple", "lkGps"].forEach((id) => $(id).addEventListener("change", updateMessage));
   ["callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((id) =>
     $(id).addEventListener(/^(callDate|callTime|infoOnSheet)$/.test(id) ? "change" : "input", () => { updateMessage(); schedule(); }));
   $("msgCopy").addEventListener("click", () => {
@@ -1262,26 +1290,60 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   $("form").addEventListener("submit", (e) => e.preventDefault());
 
   // Font
-  let loadedFont = "";
-  function hasFont(fam) {
-    const c = document.createElement("canvas").getContext("2d"), t = "QRgjWMabc0123 Chambéry";
-    return ["monospace", "serif"].some((f) => { c.font = "40px " + f; const a = c.measureText(t).width; c.font = '40px "' + fam + '", ' + f; return c.measureText(t).width !== a; });
-  }
+  // Label font: Barlow by default; a custom font file can be loaded and is remembered on this device only.
+  let loadedFont = "", customFace = null;
   function fontState() {
     const el = $("fontState");
-    if (loadedFont) { el.textContent = "Police utilisée : " + loadedFont + " (chargée depuis le fichier)."; el.style.color = "var(--ok)"; return; }
-    const found = ["TemplateGothicHosted", "TemplateGothicReg", "Template Gothic", "TemplateGothic"].find(hasFont);
-    if (found) { el.textContent = "Template Gothic trouvée sur cet appareil."; el.style.color = "var(--ok)"; }
-    else { el.textContent = "Template Gothic n’est pas installée ici : une police de remplacement est utilisée. Chargez le fichier de la police."; el.style.color = "var(--warn)"; }
+    el.textContent = loadedFont ? "Police utilisée : " + loadedFont + " (mémorisée sur cet appareil)." : "Police par défaut : Barlow.";
+    el.style.color = loadedFont ? "var(--ok)" : "";
+    $("fontReset").hidden = !loadedFont;
+  }
+  const FONT_DB = { name: "easyroute", store: "fonts", key: "label" };
+  function fontDb() {
+    return new Promise((res, rej) => {
+      try {
+        const req = indexedDB.open(FONT_DB.name, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(FONT_DB.store);
+        req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+      } catch (err) { rej(err); }
+    });
+  }
+  async function fontDbDo(mode, fn) {
+    const db = await fontDb();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(FONT_DB.store, mode), r = fn(tx.objectStore(FONT_DB.store));
+      tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error);
+    });
+  }
+  async function useFont(buf, name) {
+    const face = new FontFace("CustomLabelFont", buf);
+    await face.load();
+    if (customFace) document.fonts.delete(customFace);
+    document.fonts.add(face); customFace = face; loadedFont = name;
+    fontState(); render();
   }
   $("fontFile").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0]; if (!f) return;
+    e.target.value = "";
     try {
-      const face = new FontFace("TemplateGothicLoaded", await f.arrayBuffer());
-      await face.load(); document.fonts.add(face);
-      loadedFont = f.name; fontState(); render();
+      const buf = await f.arrayBuffer();
+      await useFont(buf.slice(0), f.name);
+      say("Police chargée : " + f.name + ".", "ok");
+      try { await fontDbDo("readwrite", (s) => s.put({ name: f.name, buf }, FONT_DB.key)); } catch (_) {}
     } catch (_) { say("Ce fichier n’est pas une police lisible. Essayez la version .ttf ou .otf.", "warn"); }
   });
+  $("fontReset").addEventListener("click", async () => {
+    if (customFace) document.fonts.delete(customFace);
+    customFace = null; loadedFont = "";
+    fontState(); render(); say("Retour à la police par défaut.");
+    try { await fontDbDo("readwrite", (s) => s.delete(FONT_DB.key)); } catch (_) {}
+  });
+  (async () => {
+    try {
+      const saved = await fontDbDo("readonly", (s) => s.get(FONT_DB.key));
+      if (saved && saved.buf) await useFont(saved.buf, saved.name);
+    } catch (_) {}
+  })();
 
   // ---------- Start ----------
   const start = parseCoords(els.coords.value);
@@ -1290,7 +1352,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   syncTool(); syncPois();
   render(); fontState();
   if (document.fonts && document.fonts.load) {
-    Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('400 40px "TemplateGothicHosted"').catch(() => [])]).then(() => { render(); fontState(); }, () => {});
+    Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"')]).then(() => { render(); fontState(); }, () => {});
   }
 })();
 </script>

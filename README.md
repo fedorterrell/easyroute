@@ -22,7 +22,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 
 **Message équipe**
 - Nom, adresse et infos pratiques : convocation, contact sur place, parking, code d’accès, hauteur max, consignes d’accès.
-- Liens d’itinéraire **Google Maps**, **Waze** et **Plans (Apple)**, plus les coordonnées GPS, pour le lieu et pour chaque point utile.
+- Liens d’itinéraire **Google Maps**, **Waze** et **Plans (Apple)**, plus les coordonnées GPS, pour le lieu et pour chaque point utile. Un tableau permet de choisir quels liens inclure pour chaque point, pour garder un message court ; ces choix sont mémorisés sur l’appareil.
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
 ## Utilisation
@@ -45,7 +45,6 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | --- | --- |
 | `index.html` | Toute l’application : HTML, CSS et JavaScript dans un seul fichier, sans étape de compilation. |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
-| `fonts/` | Police facultative de l’étiquette, chargée si elle est présente (voir ci-dessous). |
 | `Archive/` | Ancienne version de l’outil. |
 
 Le site est servi par GitHub Pages depuis la branche `main` : chaque fusion sur `main` met le site à jour en une à deux minutes.
@@ -53,7 +52,7 @@ Le site est servi par GitHub Pages depuis la branche `main` : chaque fusion sur 
 ## Personnaliser
 
 - **Ajouter un type de point utile** : ajoutez une ligne dans le tableau `POI_TYPES` de `index.html` (clé, nom, libellé par défaut, emoji, couleurs).
-- **Police de l’étiquette** : l’étiquette utilise *Template Gothic* si un fichier `fonts/TemplateGothic.ttf` (ou `.otf` / `.woff2`) est présent, ou si la police est installée sur l’appareil. Sinon, elle utilise Barlow. Un fichier de police peut aussi être chargé ponctuellement depuis l’interface.
+- **Police de l’étiquette** : Barlow par défaut. Le bouton *Charger une police* accepte un fichier `.ttf`, `.otf` ou `.woff2` ; la police est mémorisée dans le navigateur de l’appareil et n’est jamais envoyée en ligne. *Police par défaut* revient à Barlow. Aucune police commerciale n’est fournie dans ce dépôt.
 
 ## Services externes et crédits
 
@@ -69,3 +68,9 @@ Aucune donnée n’est envoyée à un serveur propre à Easy Route : tout se pas
 - Les liens courts `maps.app.goo.gl` ne peuvent pas être générés automatiquement (Google ne propose pas d’API pour cela). On peut en coller un à la main dans *Lien personnalisé*.
 - Le QR en mode Google Maps recherche le nom et l’adresse ; il ne suit pas un repère déplacé à la main. Le mode Waze et les liens du message, eux, pointent sur le repère.
 - La vue satellite et la recherche d’adresse demandent une connexion internet.
+
+## Licence
+
+Le code d’Easy Route est distribué sous licence [MIT](LICENSE) : vous pouvez l’utiliser, le modifier et le redistribuer librement, à condition de conserver la mention de copyright et le texte de la licence.
+
+Cette licence ne couvre que le code de ce dépôt. L’imagerie Esri, les données OpenStreetMap, les polices et la bibliothèque qrcode-generator restent soumises à leurs propres conditions (voir *Services externes et crédits*).
