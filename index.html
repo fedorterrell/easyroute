@@ -89,7 +89,7 @@ details.info > .info-body { display: grid; gap: 12px; margin-top: 12px; }
 .pois { display: grid; gap: 8px; }
 .poirow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .poirow input[type=text] { width: auto; flex: 1 1 170px; padding: 6px 9px; }
-.poirow .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.poirow .btn[aria-pressed="true"], #movePin[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 textarea { resize: vertical; min-height: 64px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hint { font-size: .82rem; color: var(--muted); margin: 0; }
@@ -287,12 +287,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         <div class="toolbar" id="satOpts">
           <label class="check" for="roads"><input type="checkbox" id="roads" checked> Noms des rues</label>
           <label class="check" for="pin"><input type="checkbox" id="pin" checked> Repère rouge avec le nom du lieu</label>
+          <button type="button" class="btn sm" id="movePin" aria-pressed="false">Déplacer le repère</button>
           <button type="button" class="btn sm" id="recenter">Recentrer sur le repère</button>
         </div>
         <div class="pois" id="poiOpts">
           <span class="lbl">Points utiles</span>
           <div class="pois" id="poiList"></div>
-          <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Chaque point a ses propres liens d’itinéraire dans le message.</p>
+          <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Pour corriger un repère déjà posé, faites-le glisser. Chaque point a ses propres liens d’itinéraire dans le message.</p>
         </div>
         <div class="toolbar" id="shotOpts" hidden>
           <label class="btn sm" for="shotFile">Choisir une capture…</label>
@@ -814,10 +815,36 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return [(e.clientX - r.left) * els.sheet.width / r.width, (e.clientY - r.top) * els.sheet.height / r.height];
   }
   function curView() { return st.bg === "sat" ? view(els.sheet.width, els.sheet.height) : { W: els.sheet.width, H: els.sheet.height }; }
+  // Which pin (if any) is under canvas point p: the head of the red pin or of a useful point
+  function pinHit(p) {
+    if (st.bg !== "sat" || !st.center) return null;
+    const v = curView(), s = els.sheet.width / SHEET.W, h = mmPx(9) * s, r = h * 0.36;
+    const near = (pt) => {
+      const q = toOut(v, project(pt.lat, pt.lng));
+      return Math.hypot(p[0] - q[0], p[1] - (q[1] - h + r)) <= Math.max(r * 1.7, 14) ? q : null;
+    };
+    let q;
+    if (st.pin && st.place && (q = near(st.place))) return { mode: "main", off: [q[0] - p[0], q[1] - p[1]] };
+    for (const t of [...placedPois()].reverse()) if ((q = near(st.pois[t.key]))) return { mode: "poi", key: t.key, off: [q[0] - p[0], q[1] - p[1]] };
+    return null;
+  }
+  function pointAt(p, off) {
+    const w = fromOut(curView(), p[0] + off[0], p[1] + off[1]);
+    return unproject(w[0], w[1]);
+  }
   els.sheet.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     const p = canvasPt(e), v = curView();
-    if (st.tool === "poi" && st.placing) {
+    const hit = st.tool === "pan" ? pinHit(p) : null;
+    if (st.tool === "poi" && st.placing === "main") {
+      if (st.bg !== "sat" || !st.center) return;
+      st.place = pointAt(p, [0, 0]);
+      drag = { mode: "main", off: [0, 0] };
+      schedule();
+    } else if (hit) {
+      drag = hit;
+      els.sheet.classList.add("dragging");
+    } else if (st.tool === "poi" && st.placing) {
       if (st.bg !== "sat" || !st.center) return;
       const w = fromOut(v, p[0], p[1]);
       st.pois[st.placing] = unproject(w[0], w[1]);
@@ -840,9 +867,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const p = canvasPt(e);
     if (drag.mode === "pan") {
       st.center = unproject(drag.c0[0] - (p[0] - drag.start[0]) / drag.k, drag.c0[1] - (p[1] - drag.start[1]) / drag.k);
+    } else if (drag.mode === "main") {
+      st.place = pointAt(p, drag.off);
     } else if (drag.mode === "poi") {
-      const w = fromOut(curView(), p[0], p[1]);
-      st.pois[drag.key] = unproject(w[0], w[1]);
+      st.pois[drag.key] = pointAt(p, drag.off || [0, 0]);
     } else {
       const minStep = els.sheet.width * 0.006;
       if (Math.hypot(p[0] - drag.last[0], p[1] - drag.last[1]) < minStep) return;
@@ -857,13 +885,23 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       const t = POI_TYPES.find((x) => x.key === drag.key);
       st.placing = null; setTool("pan"); syncPois();
       updateMessage();
-      say("Point placé : " + t.name + ". Touchez « Déplacer » sur sa ligne pour le changer de place.", "ok");
+      say("Point placé : " + t.name + ". Faites-le glisser pour l’ajuster.", "ok");
+    }
+    if (drag.mode === "main") {
+      st.placing = null; setTool("pan"); syncPois();
+      els.coords.value = st.place.lat.toFixed(7) + ", " + st.place.lng.toFixed(7);
+      render(); // updates the Waze QR, the coordinates and the team message
+      say("Repère du lieu déplacé. Les liens du message et le QR Waze pointent maintenant ici.", "ok");
     }
     st.live = null; drag = null;
     els.sheet.classList.remove("dragging");
     schedule();
   }
   els.sheet.addEventListener("pointerup", endDrag);
+  els.sheet.addEventListener("pointermove", (e) => {
+    if (drag || st.tool !== "pan") return;
+    els.sheet.style.cursor = pinHit(canvasPt(e)) ? "move" : "";
+  });
   els.sheet.addEventListener("pointercancel", endDrag);
   els.sheet.addEventListener("wheel", (e) => {
     if (st.bg !== "sat" || !st.center) return;
@@ -880,6 +918,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   $("roads").addEventListener("change", (e) => { st.roads = e.target.checked; schedule(); });
   $("pin").addEventListener("change", (e) => { st.pin = e.target.checked; schedule(); });
   $("recenter").addEventListener("click", () => { if (st.place) { st.center = { ...st.place }; schedule(); } });
+  $("movePin").addEventListener("click", () => {
+    if (st.placing === "main") { st.placing = null; setTool("pan"); }
+    else {
+      if (!st.center) { say("Placez d’abord le lieu sur la carte.", "warn"); return; }
+      st.placing = "main"; st.tool = "poi";
+      $("toolSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", "false"));
+      syncTool();
+      say("Touchez le plan à l’endroit exact du lieu. Vous pouvez aussi faire glisser le repère rouge.");
+    }
+    syncPois();
+  });
 
   function segment(id, cb) {
     $(id).addEventListener("click", (e) => {
@@ -929,6 +978,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     });
   });
   function syncPois() {
+    const mp = $("movePin");
+    if (mp) { mp.textContent = st.placing === "main" ? "Touchez le plan…" : "Déplacer le repère"; mp.setAttribute("aria-pressed", String(st.placing === "main")); }
     POI_TYPES.forEach((t) => {
       const placing = st.placing === t.key, b = $("poiPlace-" + t.key);
       b.textContent = placing ? "Touchez le plan…" : st.pois[t.key] ? "Déplacer" : "Placer";
