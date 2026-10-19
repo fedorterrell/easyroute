@@ -72,10 +72,21 @@ header p { margin: 0; color: var(--muted); }
 .field { display: grid; gap: 6px; min-width: 0; }
 label, .lbl { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .opt { text-transform: none; letter-spacing: 0; font-weight: 400; }
-input[type=text], textarea, select {
+input[type=text], input[type=tel], input[type=date], input[type=time], textarea, select {
   font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
   padding: 9px 10px; width: 100%; box-sizing: border-box; min-width: 0;
 }
+input[type=date], input[type=time] { -webkit-appearance: none; appearance: none; min-height: 40px; text-align: left; }
+input::-webkit-date-and-time-value { text-align: left; }
+details.info { border-top: 1px solid var(--line); padding-top: 14px; }
+details.info > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; }
+details.info > summary::-webkit-details-marker { display: none; }
+details.info > summary::before { content: "▸"; color: var(--muted); font-size: .8rem; transition: transform .15s; }
+details.info[open] > summary::before { transform: rotate(90deg); }
+details.info > .info-body { display: grid; gap: 12px; margin-top: 12px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; }
+.dockdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #1a73e8; box-shadow: 0 0 0 1.5px #fff inset; }
+#dockLabel { width: auto; flex: 1 1 160px; padding: 6px 9px; }
 textarea { resize: vertical; min-height: 64px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hint { font-size: .82rem; color: var(--muted); margin: 0; }
@@ -101,7 +112,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
 .tgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
-@media (max-width: 480px) { .tabs button { padding: 6px 6px 9px; font-size: .86rem; } .preview, .panel { padding: 14px; } input[type=text], textarea, select { font-size: 16px; } }
+@media (max-width: 480px) { .tabs button { padding: 6px 6px 9px; font-size: .86rem; } .preview, .panel { padding: 14px; } input[type=text], input[type=tel], input[type=date], input[type=time], textarea, select { font-size: 16px; } }
 .zoomval { font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center; font-weight: 600; }
 .sheetbox { position: relative; background: #3b463d; border-radius: 3px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
 #sheet { display: block; width: 100%; height: auto; aspect-ratio: 297 / 210; max-width: 100%; touch-action: none; cursor: grab; }
@@ -159,6 +170,46 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         </div>
         <p class="hint">Latitude, longitude. La carte suit l’adresse automatiquement ; « Chercher l’adresse » relance la recherche.</p>
       </div>
+
+      <details class="info" id="infoBox" open>
+        <summary><span class="lbl">Infos pratiques</span> <span class="hint">(facultatif)</span></summary>
+        <div class="info-body">
+          <div class="field">
+            <span class="lbl" id="callLbl">Convocation</span>
+            <div class="pair" role="group" aria-labelledby="callLbl">
+              <input type="date" id="callDate" aria-label="Date de convocation">
+              <input type="time" id="callTime" aria-label="Heure de convocation">
+            </div>
+          </div>
+          <div class="field">
+            <span class="lbl" id="contactLbl">Contact sur place</span>
+            <div class="pair" role="group" aria-labelledby="contactLbl">
+              <input type="text" id="contactName" placeholder="Nom" aria-label="Nom du contact">
+              <input type="tel" id="contactPhone" placeholder="06 12 34 56 78" aria-label="Téléphone du contact" inputmode="tel">
+            </div>
+          </div>
+          <div class="field">
+            <label for="parking">Parking</label>
+            <input type="text" id="parking" placeholder="Parking du personnel, derrière la salle">
+          </div>
+          <div class="pair">
+            <div class="field">
+              <label for="accessCode">Code d’accès</label>
+              <input type="text" id="accessCode" placeholder="Portail 1234A">
+            </div>
+            <div class="field">
+              <label for="maxHeight">Hauteur max</label>
+              <input type="text" id="maxHeight" placeholder="3,50 m">
+            </div>
+          </div>
+          <div class="field">
+            <label for="note">Consignes d’accès</label>
+            <textarea id="note" rows="2" placeholder="Camion par le Chemin du Curé-Desclouds, déchargement à l'arrière du bâtiment"></textarea>
+          </div>
+          <label class="check" for="infoOnSheet"><input type="checkbox" id="infoOnSheet" checked> Imprimer ces infos sur le plan A4</label>
+          <p class="hint">Elles s’ajoutent aussi au message pour l’équipe.</p>
+        </div>
+      </details>
 
       <div class="row">
         <div class="field" style="flex:1 1 100%">
@@ -225,6 +276,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
             <div class="seg" role="group" aria-labelledby="toolLbl" id="toolSeg">
               <button type="button" data-v="pan" aria-pressed="true">Déplacer</button>
               <button type="button" data-v="arrow" aria-pressed="false"><span class="swatch"></span> Flèche</button>
+              <button type="button" data-v="dock" aria-pressed="false" id="dockTool"><span class="dockdot"></span> Accès technique</button>
             </div>
             <button type="button" class="btn sm" id="undo">Annuler</button>
             <button type="button" class="btn sm" id="clear">Effacer les flèches</button>
@@ -234,6 +286,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <label class="check" for="roads"><input type="checkbox" id="roads" checked> Noms des rues</label>
           <label class="check" for="pin"><input type="checkbox" id="pin" checked> Repère rouge avec le nom du lieu</label>
           <button type="button" class="btn sm" id="recenter">Recentrer sur le repère</button>
+        </div>
+        <div class="toolbar" id="dockOpts">
+          <span class="lbl"><span class="dockdot"></span> Accès technique</span>
+          <input type="text" id="dockLabel" value="Accès technique / déchargement" aria-label="Libellé du repère accès technique">
+          <button type="button" class="btn sm" id="dockClear" disabled>Retirer</button>
+          <p class="hint" id="dockHint" style="flex:1 1 100%">Choisissez l’outil « Accès technique », puis touchez le plan à l’endroit du quai ou de l’entrée des artistes.</p>
         </div>
         <div class="toolbar" id="shotOpts" hidden>
           <label class="btn sm" for="shotFile">Choisir une capture…</label>
@@ -273,11 +331,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       </div>
 
       <div id="paneMsg" class="pane" role="tabpanel" aria-labelledby="tabMsg" hidden>
-        <p class="hint">Pour WhatsApp ou l’e-mail. Sur le téléphone, chaque lien s’ouvre directement dans l’application. Joignez le plan A4 en JPG pour que l’équipe voie aussi l’accès.</p>
-        <div class="field">
-          <label for="note">Consignes d’accès <span class="opt">(facultatif)</span></label>
-          <textarea id="note" rows="2" placeholder="Camion par le Chemin du Curé-Desclouds, déchargement à l'arrière du bâtiment"></textarea>
-        </div>
+        <p class="hint">Pour WhatsApp ou l’e-mail. Sur le téléphone, chaque lien s’ouvre directement dans l’application. Joignez le plan A4 en JPG pour que l’équipe voie aussi l’accès. Les infos pratiques se remplissent à gauche.</p>
         <div class="row" style="align-items:center">
           <span class="lbl">Liens</span>
           <label class="check" for="lkGoogle"><input type="checkbox" id="lkGoogle" checked> Google Maps</label>
@@ -477,7 +531,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   const st = {
     place: null, center: null, zoom: 18, roads: true, pin: true, bg: "sat", tool: "pan",
     arrows: { sat: [], shot: [] }, shot: null, live: null,
+    dock: null, // { lat, lng } of the technical access / loading dock
   };
+  const DOCK_DEFAULT = "Accès technique / déchargement";
+  const dockLabel = () => $("dockLabel").value.trim() || DOCK_DEFAULT;
 
   function project(lat, lng) {
     const s = Math.sin(lat * Math.PI / 180);
@@ -542,7 +599,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     ctx.lineJoin = "round"; ctx.lineWidth = size * 0.28; ctx.strokeStyle = "rgba(0,0,0,.72)";
     ctx.strokeText(text, x, y); ctx.fillStyle = "#fff"; ctx.fillText(text, x, y);
   }
-  function drawPin(ctx, x, y, s) {
+  const PIN = {
+    main: { fill: "#ea4335", stroke: "#a52714", dot: "#6e1409" },
+    dock: { fill: "#1a73e8", stroke: "#0b4ea2", dot: "#ffffff" },
+  };
+  function drawPin(ctx, x, y, s, col) {
+    col = col || PIN.main;
     const h = mmPx(9) * s, r = h * 0.36, cy = y - h + r;
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = r * 0.5; ctx.shadowOffsetY = r * 0.15;
@@ -550,11 +612,83 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     ctx.bezierCurveTo(x - r * 0.35, y - r * 0.9, x - r, cy + r * 0.75, x - r, cy);
     ctx.arc(x, cy, r, Math.PI, 0);
     ctx.bezierCurveTo(x + r, cy + r * 0.75, x + r * 0.35, y - r * 0.9, x, y);
-    ctx.fillStyle = "#ea4335"; ctx.fill();
+    ctx.fillStyle = col.fill; ctx.fill();
     ctx.restore();
-    ctx.lineWidth = Math.max(1, r * 0.08); ctx.strokeStyle = "#a52714"; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, cy, r * 0.38, 0, Math.PI * 2); ctx.fillStyle = "#6e1409"; ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.08); ctx.strokeStyle = col.stroke; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, cy, r * 0.38, 0, Math.PI * 2); ctx.fillStyle = col.dot; ctx.fill();
     return { top: y - h, r };
+  }
+  function pinLabel(ctx, pp, pin, text, s) {
+    if (!text) return;
+    const size = mmPx(4.2) * s;
+    ctx.font = `400 ${size}px ${SANS}`;
+    const lines = wrap(ctx, text, mmPx(55) * s).slice(0, 3);
+    const x = pp[0] + pin.r * 1.35, y0 = pin.top + pin.r - (lines.length - 1) * size * 0.6;
+    lines.forEach((l, i) => haloText(ctx, l, x, y0 + i * size * 1.2, size));
+  }
+
+  // ---------- Practical info ----------
+  function callText() {
+    const d = $("callDate").value, t = $("callTime").value;
+    let out = "";
+    if (d) {
+      const [y, m, dd] = d.split("-").map(Number);
+      if (y && m && dd) out = new Date(y, m - 1, dd).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    }
+    if (t) {
+      const [h, mi] = t.split(":");
+      const ts = (+h) + "h" + (mi || "00");
+      out = out ? out + " à " + ts : ts;
+    }
+    return out;
+  }
+  // [label, value, emoji] in display order
+  function infoRows() {
+    const v = (id) => $(id).value.trim();
+    const rows = [];
+    const call = callText();
+    if (call) rows.push(["Convocation", call, "\u{1F552}"]);
+    const contact = [v("contactName"), v("contactPhone")].filter(Boolean).join(" — ");
+    if (contact) rows.push(["Contact sur place", contact, "\u{1F464}"]);
+    if (v("parking")) rows.push(["Parking", v("parking"), "\u{1F17F}\u{FE0F}"]);
+    if (v("accessCode")) rows.push(["Code d’accès", v("accessCode"), "\u{1F511}"]);
+    if (v("maxHeight")) rows.push(["Hauteur max", v("maxHeight"), "\u{26A0}\u{FE0F}"]);
+    if (v("note")) rows.push(["Consignes d’accès", v("note").replace(/\s*\n\s*/g, " "), "\u{27A1}\u{FE0F}"]);
+    return rows;
+  }
+  // White card with the practical info, bottom-aligned to `bottom`, starting at x.
+  function drawInfoCard(ctx, x, bottom, maxRight, s) {
+    if (!$("infoOnSheet").checked) return;
+    const rows = infoRows();
+    if (!rows.length) return;
+    const pad = mmPx(3.6) * s, ls = mmPx(2.5) * s, vs = mmPx(3.6) * s, colGap = mmPx(3.5) * s, lh = 1.28, rowGap = mmPx(1.4) * s;
+    const labelFont = `400 ${ls}px ${SANS}`, valueFont = `400 ${vs}px ${SANS}`;
+    ctx.font = labelFont;
+    const labels = rows.map((r) => r[0].toUpperCase());
+    const labelW = Math.max(...labels.map((l) => ctx.measureText(l).width));
+    const maxValW = Math.max(mmPx(30) * s, Math.min(mmPx(88) * s, maxRight - x - pad * 2 - labelW - colGap));
+    ctx.font = valueFont;
+    const wrapped = rows.map((r) => wrap(ctx, r[1], maxValW).slice(0, 4));
+    const valW = Math.max(...wrapped.flat().map((l) => ctx.measureText(l).width));
+    const h = pad * 2 + wrapped.reduce((a, ls2) => a + ls2.length * vs * lh, 0) + rowGap * (rows.length - 1);
+    const w = pad * 2 + labelW + colGap + valW;
+    const y = bottom - h, r = mmPx(3) * s;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
+    roundRect(ctx, x, y, w, h, r); ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    let cy = y + pad;
+    rows.forEach((row, i) => {
+      const mid = cy + vs * lh / 2;
+      ctx.font = labelFont; ctx.fillStyle = "#6b7480";
+      ctx.fillText(labels[i], x + pad, mid);
+      ctx.font = valueFont; ctx.fillStyle = "#111";
+      wrapped[i].forEach((l, j) => ctx.fillText(l, x + pad + labelW + colGap, mid + j * vs * lh));
+      cy += wrapped[i].length * vs * lh + rowGap;
+    });
+    ctx.restore();
   }
   function drawArrow(ctx, pts, s) {
     if (pts.length < 2) return;
@@ -607,17 +741,14 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         if (failed && !standalone && layers[0].every((i) => !i.t.ok)) message(ctx, W, H, "L’imagerie satellite ne peut pas se charger dans Claude. Utilisez « Version hors ligne » et ouvrez le fichier dans Safari, ou passez à Ma capture.");
         st.arrows.sat.forEach((a) => drawArrow(ctx, a.map((p) => toOut(v, p)), s));
         if (st.live && st.bg === "sat") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
+        if (st.dock) {
+          const dp = toOut(v, project(st.dock.lat, st.dock.lng));
+          pinLabel(ctx, dp, drawPin(ctx, dp[0], dp[1], s, PIN.dock), dockLabel(), s);
+        }
         if (st.pin && st.place) {
           const pp = toOut(v, project(st.place.lat, st.place.lng));
           const pin = drawPin(ctx, pp[0], pp[1], s);
-          const label = els.name.value.trim() || els.addr.value.trim().split(/\n|,/)[0];
-          if (label) {
-            const size = mmPx(4.2) * s;
-            ctx.font = `400 ${size}px ${SANS}`;
-            const lines = wrap(ctx, label, mmPx(55) * s).slice(0, 3);
-            const x = pp[0] + pin.r * 1.35, y0 = pin.top + pin.r - (lines.length - 1) * size * 0.6;
-            lines.forEach((l, i) => haloText(ctx, l, x, y0 + i * size * 1.2, size));
-          }
+          pinLabel(ctx, pp, pin, els.name.value.trim() || els.addr.value.trim().split(/\n|,/)[0], s);
         }
         const as = mmPx(2.4) * s;
         haloText(ctx, "Imagerie © Esri, Maxar, Earthstar Geographics", W - mmPx(4) * s, H - mmPx(3) * s, as, "right");
@@ -634,8 +765,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     }
     // QR card, bottom-left, true print size
     const L = current.sheetLabel;
+    const m = mmPx(5) * s;
+    drawInfoCard(ctx, L ? m + L.W * s + mmPx(4) * s : m, H - m, W - m, s);
     if (L) {
-      const m = mmPx(5) * s, cw = L.W * s, ch = L.H * s, x = m, y = H - m - ch, r = mmPx(3) * s;
+      const cw = L.W * s, ch = L.H * s, x = m, y = H - m - ch, r = mmPx(3) * s;
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
       roundRect(ctx, x, y, cw, ch, r); ctx.fillStyle = "#fff"; ctx.fill();
@@ -675,7 +808,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   els.sheet.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     const p = canvasPt(e), v = curView();
-    if (st.tool === "arrow") {
+    if (st.tool === "dock") {
+      if (st.bg !== "sat" || !st.center) return;
+      const w = fromOut(v, p[0], p[1]);
+      st.dock = unproject(w[0], w[1]);
+      drag = { mode: "dock" };
+      syncDock(); schedule();
+    } else if (st.tool === "arrow") {
       if (st.bg === "sat" && !st.center) return;
       st.live = [fromOut(v, p[0], p[1])];
       drag = { mode: "arrow", last: p };
@@ -692,6 +831,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const p = canvasPt(e);
     if (drag.mode === "pan") {
       st.center = unproject(drag.c0[0] - (p[0] - drag.start[0]) / drag.k, drag.c0[1] - (p[1] - drag.start[1]) / drag.k);
+    } else if (drag.mode === "dock") {
+      const w = fromOut(curView(), p[0], p[1]);
+      st.dock = unproject(w[0], w[1]);
     } else {
       const minStep = els.sheet.width * 0.006;
       if (Math.hypot(p[0] - drag.last[0], p[1] - drag.last[1]) < minStep) return;
@@ -702,6 +844,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   function endDrag() {
     if (!drag) return;
     if (drag.mode === "arrow" && st.live && st.live.length >= 3) st.arrows[st.bg].push(st.live);
+    if (drag.mode === "dock") {
+      setTool("pan");
+      updateMessage();
+      say("Accès technique placé. Rechoisissez l’outil pour le déplacer.", "ok");
+    }
     st.live = null; drag = null;
     els.sheet.classList.remove("dragging");
     schedule();
@@ -731,9 +878,27 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       cb(b.dataset.v);
     });
   }
-  segment("bgSeg", (v) => { st.bg = v; $("satOpts").hidden = v !== "sat"; $("shotOpts").hidden = v !== "shot"; $("zoomGroup").hidden = v !== "sat"; syncTool(); schedule(); });
+  segment("bgSeg", (v) => {
+    st.bg = v; $("satOpts").hidden = v !== "sat"; $("dockOpts").hidden = v !== "sat"; $("shotOpts").hidden = v !== "shot"; $("zoomGroup").hidden = v !== "sat";
+    $("dockTool").hidden = v !== "sat";
+    if (v !== "sat" && st.tool === "dock") setTool("pan");
+    syncTool(); schedule();
+  });
   segment("toolSeg", (v) => { st.tool = v; syncTool(); });
-  function syncTool() { els.sheet.classList.toggle("drawing", st.tool === "arrow" || st.bg === "shot"); }
+  function setTool(v) {
+    st.tool = v;
+    $("toolSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.v === v)));
+    syncTool();
+  }
+  function syncTool() { els.sheet.classList.toggle("drawing", st.tool === "arrow" || st.tool === "dock" || st.bg === "shot"); }
+  function syncDock() {
+    $("dockClear").disabled = !st.dock;
+    $("dockHint").textContent = st.dock
+      ? "Repère bleu sur le plan. Ajouté au message avec ses propres liens d’itinéraire."
+      : "Choisissez l’outil « Accès technique », puis touchez le plan à l’endroit du quai ou de l’entrée des artistes.";
+  }
+  $("dockClear").addEventListener("click", () => { st.dock = null; syncDock(); updateMessage(); schedule(); say("Accès technique retiré."); });
+  $("dockLabel").addEventListener("input", () => { updateMessage(); schedule(); });
   segment("layout", (v) => { layout = v; render(); });
 
   // Location
@@ -747,7 +912,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   function setPlace(p, note) {
     if (st.place) {
       const a = project(st.place.lat, st.place.lng), b = project(p.lat, p.lng);
-      if (Math.hypot(a[0] - b[0], a[1] - b[1]) * Math.pow(2, 18) > 1500) st.arrows.sat = []; // moved far: old arrows no longer apply
+      if (Math.hypot(a[0] - b[0], a[1] - b[1]) * Math.pow(2, 18) > 1500) { st.arrows.sat = []; st.dock = null; syncDock(); } // moved far: old arrows and access no longer apply
     }
     st.place = p; st.center = { ...p };
     render();
@@ -831,22 +996,32 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   $("tabMsg").addEventListener("click", () => tab("msg"));
 
   // ---------- Team message ----------
-  function messageText() {
-    const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", "), note = $("note").value.trim();
-    const p = st.place;
-    const q = encodeURIComponent((name ? name + ", " : "") + addr);
+  // Route links to a point (or to a text search when there is no point)
+  function routeLines(p, title, search) {
+    const out = [];
     const ll = p ? p.lat.toFixed(6) + "," + p.lng.toFixed(6) : "";
+    const links = $("lkGoogle").checked || $("lkWaze").checked || $("lkApple").checked;
+    if ($("lkGoogle").checked) out.push("", "Google Maps :", "https://www.google.com/maps/search/?api=1&query=" + (p ? ll : encodeURIComponent(search)));
+    if ($("lkWaze").checked) out.push("", "Waze :", p ? "https://waze.com/ul?ll=" + ll + "&navigate=yes" : "https://waze.com/ul?q=" + encodeURIComponent(search) + "&navigate=yes");
+    if ($("lkApple").checked) out.push("", "Plans (Apple) :", p ? "https://maps.apple.com/?ll=" + ll + "&q=" + encodeURIComponent(title || "Lieu") : "https://maps.apple.com/?q=" + encodeURIComponent(search));
+    if ($("lkGps").checked && p) out.push(...(links ? [""] : []), "Coordonnées GPS : " + p.lat.toFixed(6) + ", " + p.lng.toFixed(6));
+    return out;
+  }
+  function messageText() {
+    const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
     const lines = [];
     if (name) lines.push("\u{1F4CD} " + name);
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
-    if (note) lines.push("", "Accès : " + note);
+    const info = infoRows();
+    if (info.length) lines.push("", ...info.map(([k, v, icon]) => icon + " " + k + " : " + v));
     const links = $("lkGoogle").checked || $("lkWaze").checked || $("lkApple").checked;
     lines.push("");
     if (links) lines.push("Itinéraire :");
-    if ($("lkGoogle").checked) lines.push("", "Google Maps :", (p ? "https://www.google.com/maps/search/?api=1&query=" + ll : "https://www.google.com/maps/search/?api=1&query=" + q));
-    if ($("lkWaze").checked) lines.push("", "Waze :", (p ? "https://waze.com/ul?ll=" + ll + "&navigate=yes" : "https://waze.com/ul?q=" + encodeURIComponent(addr) + "&navigate=yes"));
-    if ($("lkApple").checked) lines.push("", "Plans (Apple) :", (p ? "https://maps.apple.com/?ll=" + ll + "&q=" + encodeURIComponent(name || addr || "Lieu") : "https://maps.apple.com/?q=" + q));
-    if ($("lkGps").checked && p) lines.push(...(links ? [""] : []), "Coordonnées GPS : " + p.lat.toFixed(6) + ", " + p.lng.toFixed(6));
+    lines.push(...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr));
+    if (st.dock) {
+      const dock = routeLines(st.dock, dockLabel(), "");
+      if (dock.length) lines.push("", "\u{1F69A} " + dockLabel() + " :", ...dock);
+    }
     while (lines.length && lines[lines.length - 1] === "") lines.pop();
     return lines.join("\n");
   }
@@ -855,12 +1030,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const text = messageText();
     $("msg").value = text;
     $("msgWa").href = "https://wa.me/?text=" + encodeURIComponent(text);
-    const subject = "Adresse : " + (els.name.value.trim() || els.addr.value.trim().split(/\n/)[0] || "lieu de rendez-vous");
+    const call = callText();
+    const subject = "Adresse : " + (els.name.value.trim() || els.addr.value.trim().split(/\n/)[0] || "lieu de rendez-vous") + (call ? " — " + call : "");
     $("msgMail").href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text);
     $("msgMail").hidden = !standalone;
-    $("msgHint").textContent = st.place ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
+    $("msgHint").textContent = st.place
+      ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (st.dock ? " L’accès technique a ses propres liens." : "")
+      : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
   }
-  ["note", "lkGoogle", "lkWaze", "lkApple", "lkGps"].forEach((id) => $(id).addEventListener(id === "note" ? "input" : "change", updateMessage));
+  ["lkGoogle", "lkWaze", "lkApple", "lkGps"].forEach((id) => $(id).addEventListener("change", updateMessage));
+  ["callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((id) =>
+    $(id).addEventListener(/^(callDate|callTime|infoOnSheet)$/.test(id) ? "change" : "input", () => { updateMessage(); schedule(); }));
   $("msgCopy").addEventListener("click", () => {
     const ta = $("msg"), sel = () => { ta.focus(); ta.select(); say("Message sélectionné. Appuyez sur ⌘C pour copier."); };
     try { navigator.clipboard.writeText(ta.value).then(() => say("Message copié. Collez-le dans WhatsApp ou votre e-mail.", "ok"), sel); } catch (_) { sel(); }
@@ -930,7 +1110,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (!$("msgShare").hidden) $("msgCopy").classList.remove("primary");
   }
   function shareSig() {
-    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, $("note").value]);
+    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.dock, dockLabel(), $("infoOnSheet").checked, infoRows()]);
   }
   let prepared = null; // { sig, file } — iOS only opens the share sheet right after a tap, so a slow render is done first
   async function sheetFile() {
@@ -1019,7 +1199,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   const start = parseCoords(els.coords.value);
   if (start) { st.place = start; st.center = { ...start }; }
   $("sheetNote").textContent = standalone ? "" : "Le satellite et la recherche d’adresse demandent la version hors ligne";
-  syncTool();
+  syncTool(); syncDock();
   render(); fontState();
   if (document.fonts && document.fonts.load) {
     Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('400 40px "TemplateGothicHosted"').catch(() => [])]).then(() => { render(); fontState(); }, () => {});

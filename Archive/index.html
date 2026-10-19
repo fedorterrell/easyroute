@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Easy Route">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12171d" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+/* Optional: put your Template Gothic file in fonts/ with one of these names */
+@font-face { font-family: "TemplateGothicHosted"; font-display: swap;
+  src: url("fonts/TemplateGothic.woff2") format("woff2"), url("fonts/TemplateGothic.ttf") format("truetype"), url("fonts/TemplateGothic.otf") format("opentype"); }
+body { padding-top: max(24px, env(safe-area-inset-top, 0px)) !important; padding-bottom: max(40px, env(safe-area-inset-bottom, 0px)) !important; }
+</style>
+</head>
+<body>
+<title>Easy Route !</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: drafting-sheet tool — form column on the left, A4 sheet preview on the right, stacked on phones */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --ink: #17202a;
+  --muted: #5b6774;
+  --line: #cfd6de;
+  --accent: #1f5f9e;
+  --accent-ink: #ffffff;
+  --arrow: #e5402a;
+  --ok: #2e7d4f;
+  --warn: #a0521d;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12171d; --panel: #1a2129; --ink: #e4e9ee; --muted: #93a0ad; --line: #2c3742;
+    --accent: #6aa6e0; --accent-ink: #0d1620; --arrow: #ff6a52; --ok: #6cc293; --warn: #e0a06a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12171d; --panel: #1a2129; --ink: #e4e9ee; --muted: #93a0ad; --line: #2c3742;
+  --accent: #6aa6e0; --accent-ink: #0d1620; --arrow: #ff6a52; --ok: #6cc293; --warn: #e0a06a;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+.pane { display: grid; gap: 14px; min-width: 0; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 1.9rem; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); }
+.grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.field { display: grid; gap: 6px; min-width: 0; }
+label, .lbl { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.opt { text-transform: none; letter-spacing: 0; font-weight: 400; }
+input[type=text], textarea, select {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  padding: 9px 10px; width: 100%; box-sizing: border-box; min-width: 0;
+}
+textarea { resize: vertical; min-height: 64px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hint { font-size: .82rem; color: var(--muted); margin: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.row > .field { flex: 1 1 110px; }
+.inline { display: flex; gap: 8px; }
+.inline input { flex: 1 1 auto; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; flex-wrap: nowrap; }
+.seg button { font: inherit; font-size: .86rem; background: transparent; color: var(--ink); border: 0; padding: 7px 11px; cursor: pointer; white-space: nowrap; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: .9rem; color: var(--ink); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.url { font-family: var(--f-mono); font-size: .76rem; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; user-select: all; max-height: 5.5em; overflow: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font: inherit; font-weight: 600; font-size: .9rem; border-radius: 4px; padding: 8px 13px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.sm { padding: 6px 10px; font-size: .84rem; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:not(:disabled):hover { filter: brightness(1.05); }
+.preview { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { font: inherit; font-weight: 600; font-size: .92rem; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 6px 10px 9px; cursor: pointer; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.tgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+@media (max-width: 480px) { .tabs button { padding: 6px 6px 9px; font-size: .86rem; } .preview, .panel { padding: 14px; } input[type=text], textarea, select { font-size: 16px; } }
+.zoomval { font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center; font-weight: 600; }
+.sheetbox { position: relative; background: #3b463d; border-radius: 3px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+#sheet { display: block; width: 100%; height: auto; aspect-ratio: 297 / 210; max-width: 100%; touch-action: none; cursor: grab; }
+#sheet.drawing { cursor: crosshair; }
+#sheet.dragging { cursor: grabbing; }
+.dropnote { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(31,95,158,.35); color: #fff; font-weight: 600; font-size: 1.1rem; pointer-events: none; }
+.stage { background-color: var(--bg); background-image: repeating-linear-gradient(0deg, transparent 0 19px, var(--line) 19px 20px), repeating-linear-gradient(90deg, transparent 0 19px, var(--line) 19px 20px); border-radius: 4px; padding: 24px; display: grid; place-items: center; overflow: auto; }
+.stage img { display: block; max-width: 100%; height: auto; box-shadow: 0 1px 3px rgba(0,0,0,.18); background: #fff; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .84rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta b { color: var(--ink); font-weight: 600; }
+.status { font-size: .86rem; min-height: 1.2em; margin: 0; }
+.status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
+.example { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--warn); }
+.swatch { display: inline-block; width: 14px; height: 3px; background: var(--arrow); border-radius: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Easy Route !</h1>
+    <p>Une adresse, et vous obtenez un plan A4, une étiquette QR et un message pour l’équipe.</p>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="form" autocomplete="off">
+      <div class="field">
+        <label for="name">Nom du lieu <span class="opt">(facultatif)</span></label>
+        <input type="text" id="name" value="Espace Culturel du Bois-Des-Arts">
+      </div>
+      <div class="field">
+        <label for="addr">Adresse</label>
+        <textarea id="addr" rows="2">Chemin du Bois-Des-Arts 62, 1226 Thônex, Suisse</textarea>
+        <span class="example" id="exampleTag">Lieu d’exemple — remplacez-le par le vôtre</span>
+      </div>
+      <div class="field">
+        <span class="lbl" id="appLbl">Le QR ouvre</span>
+        <div class="seg" role="group" aria-labelledby="appLbl" id="appSeg">
+          <button type="button" data-v="google" aria-pressed="true">Google Maps</button>
+          <button type="button" data-v="waze" aria-pressed="false">Waze</button>
+        </div>
+        <p class="hint" id="appHint">Ouvre le lieu dans Google Maps, sur n’importe quel téléphone.</p>
+      </div>
+      <label class="check" for="useName" id="useNameRow"><input type="checkbox" id="useName" checked> Inclure le nom du lieu dans le lien Maps</label>
+
+      <div class="field">
+        <label for="custom">Lien personnalisé <span class="opt">(facultatif)</span></label>
+        <input type="text" id="custom" placeholder="https://maps.app.goo.gl/…">
+        <p class="hint">Collez un lien court pour l’utiliser dans le QR à la place du lien généré. Un lien Google Maps complet place aussi le point sur la carte.</p>
+      </div>
+
+      <div class="field">
+        <label for="coords">Position sur la carte</label>
+        <div class="inline">
+          <input type="text" id="coords" value="46.1879295, 6.1989208" placeholder="46.18793, 6.19892">
+          <button type="button" class="btn sm" id="find">Chercher l’adresse</button>
+        </div>
+        <p class="hint">Latitude, longitude. La carte suit l’adresse automatiquement ; « Chercher l’adresse » relance la recherche.</p>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:1 1 100%">
+          <span class="lbl" id="layoutLbl">Disposition</span>
+          <div class="seg" role="group" aria-labelledby="layoutLbl" id="layout">
+            <button type="button" data-v="side" aria-pressed="true">Côte à côte</button>
+            <button type="button" data-v="stack" aria-pressed="false">Empilée</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="qrmm">Taille du QR</label>
+          <select id="qrmm">
+            <option value="20">20 mm</option>
+            <option value="25">25 mm</option>
+            <option value="30" selected>30 mm</option>
+            <option value="40">40 mm</option>
+            <option value="50">50 mm</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="lbl">Police de l’étiquette</span>
+        <p class="hint" id="fontState">Recherche de Template Gothic…</p>
+        <label class="btn sm" for="fontFile" style="justify-self:start">Charger la police (.ttf / .otf)</label>
+        <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2" hidden>
+      </div>
+      <label class="check" for="showUrl"><input type="checkbox" id="showUrl"> Imprimer le lien sous l’adresse</label>
+
+      <div class="field">
+        <span class="lbl">Lien contenu dans le QR</span>
+        <div class="url" id="url"></div>
+        <div class="actions">
+          <button type="button" class="btn sm" id="copy">Copier le lien</button>
+          <a class="btn sm" id="open" href="#" target="_blank" rel="noopener">Tester le lien</a>
+        </div>
+      </div>
+    </form>
+
+    <section class="preview" aria-label="Aperçu">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tabSheet" aria-selected="true" aria-controls="paneSheet">Plan A4 paysage</button>
+        <button type="button" role="tab" id="tabLabel" aria-selected="false" aria-controls="paneLabel">Étiquette seule</button>
+        <button type="button" role="tab" id="tabMsg" aria-selected="false" aria-controls="paneMsg">Message équipe</button>
+      </div>
+
+      <div id="paneSheet" class="pane" role="tabpanel" aria-labelledby="tabSheet">
+        <div class="toolbar">
+          <div class="tgroup">
+            <span class="lbl" id="bgLbl">Fond</span>
+            <div class="seg" role="group" aria-labelledby="bgLbl" id="bgSeg">
+              <button type="button" data-v="sat" aria-pressed="true">Satellite</button>
+              <button type="button" data-v="shot" aria-pressed="false">Ma capture</button>
+            </div>
+          </div>
+          <div class="tgroup" id="zoomGroup">
+            <span class="lbl">Zoom</span>
+            <button type="button" class="btn sm" id="zoomOut" aria-label="Dézoomer">−</button>
+            <span class="zoomval" id="zoomVal">18</span>
+            <button type="button" class="btn sm" id="zoomIn" aria-label="Zoomer">+</button>
+          </div>
+          <div class="tgroup">
+            <span class="lbl" id="toolLbl">Outil</span>
+            <div class="seg" role="group" aria-labelledby="toolLbl" id="toolSeg">
+              <button type="button" data-v="pan" aria-pressed="true">Déplacer</button>
+              <button type="button" data-v="arrow" aria-pressed="false"><span class="swatch"></span> Flèche</button>
+            </div>
+            <button type="button" class="btn sm" id="undo">Annuler</button>
+            <button type="button" class="btn sm" id="clear">Effacer les flèches</button>
+          </div>
+        </div>
+        <div class="toolbar" id="satOpts">
+          <label class="check" for="roads"><input type="checkbox" id="roads" checked> Noms des rues</label>
+          <label class="check" for="pin"><input type="checkbox" id="pin" checked> Repère rouge avec le nom du lieu</label>
+          <button type="button" class="btn sm" id="recenter">Recentrer sur le repère</button>
+        </div>
+        <div class="toolbar" id="shotOpts" hidden>
+          <label class="btn sm" for="shotFile">Choisir une capture…</label>
+          <input type="file" id="shotFile" accept="image/*" hidden>
+          <span class="hint">Ou collez-la avec ⌘V, ou déposez-la sur le plan. Elle remplit la feuille, recadrée en A4.</span>
+        </div>
+        <div class="sheetbox" id="sheetBox">
+          <canvas id="sheet" tabindex="0" aria-label="Aperçu du plan A4. Faites glisser pour déplacer la carte ou dessiner des flèches."></canvas>
+          <div class="dropnote" id="dropNote" hidden>Déposez la capture pour l’utiliser</div>
+        </div>
+        <div class="meta"><span>A4 paysage <b>297 × 210 mm</b></span><span>Export <b>3508 × 2480 px</b> à 300 dpi</span><span id="sheetNote"></span></div>
+        <div class="actions">
+          <button type="button" class="btn primary" id="sheetJpg">Télécharger en JPG</button>
+          <button type="button" class="btn" id="sheetPng">Télécharger en PNG</button>
+          <button type="button" class="btn share" id="sheetShare" hidden>Partager le plan</button>
+          <button type="button" class="btn" id="offline" hidden>Version hors ligne (.html)</button>
+        </div>
+      </div>
+
+      <div id="paneLabel" class="pane" role="tabpanel" aria-labelledby="tabLabel" hidden>
+        <div class="row">
+          <div class="field" style="flex:0 1 160px">
+            <label for="dpi">Résolution</label>
+            <select id="dpi">
+              <option value="300" selected>300 dpi</option>
+              <option value="600">600 dpi</option>
+            </select>
+          </div>
+        </div>
+        <div class="stage"><img id="out" alt="Aperçu de l’étiquette QR"></div>
+        <div class="meta" id="meta"></div>
+        <div class="actions">
+          <button type="button" class="btn primary" id="dlPng">Télécharger en PNG</button>
+          <button type="button" class="btn" id="dlJpg">Télécharger en JPG</button>
+          <button type="button" class="btn" id="dlSvg">Télécharger en SVG (cliquable)</button>
+        </div>
+      </div>
+
+      <div id="paneMsg" class="pane" role="tabpanel" aria-labelledby="tabMsg" hidden>
+        <p class="hint">Pour WhatsApp ou l’e-mail. Sur le téléphone, chaque lien s’ouvre directement dans l’application. Joignez le plan A4 en JPG pour que l’équipe voie aussi l’accès.</p>
+        <div class="field">
+          <label for="note">Consignes d’accès <span class="opt">(facultatif)</span></label>
+          <textarea id="note" rows="2" placeholder="Camion par le Chemin du Curé-Desclouds, déchargement à l'arrière du bâtiment"></textarea>
+        </div>
+        <div class="row" style="align-items:center">
+          <span class="lbl">Liens</span>
+          <label class="check" for="lkGoogle"><input type="checkbox" id="lkGoogle" checked> Google Maps</label>
+          <label class="check" for="lkWaze"><input type="checkbox" id="lkWaze" checked> Waze</label>
+          <label class="check" for="lkApple"><input type="checkbox" id="lkApple" checked> Plans (Apple)</label>
+          <label class="check" for="lkGps"><input type="checkbox" id="lkGps" checked> Coordonnées GPS</label>
+        </div>
+        <label class="check share" for="msgWithSheet" hidden><input type="checkbox" id="msgWithSheet" checked> Joindre le plan A4 (JPG) au partage</label>
+        <div class="field">
+          <label for="msg">Message</label>
+          <textarea id="msg" rows="13" readonly style="font-family:var(--f-mono);font-size:.82rem"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn primary share" id="msgShare" hidden>Partager</button>
+          <button type="button" class="btn primary" id="msgCopy">Copier le message</button>
+          <a class="btn" id="msgWa" href="#" target="_blank" rel="noopener">Ouvrir dans WhatsApp</a>
+          <a class="btn" id="msgMail" href="#" hidden>Envoyer par e-mail</a>
+        </div>
+        <p class="hint" id="msgHint"></p>
+      </div>
+
+      <p class="status" id="status" role="status"></p>
+      <p class="hint" id="footHint">Imagerie satellite : Esri World Imagery. Recherche d’adresse : OpenStreetMap Nominatim. La carte QR est placée en bas à gauche, à sa taille d’impression réelle.</p>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const els = { name: $("name"), addr: $("addr"), useName: $("useName"), custom: $("custom"), coords: $("coords"), qrmm: $("qrmm"), dpi: $("dpi"), showUrl: $("showUrl"), url: $("url"), open: $("open"), out: $("out"), meta: $("meta"), status: $("status"), sheet: $("sheet") };
+  const standalone = !(window.claude && typeof window.claude.use === "function");
+
+  const SANS = '"TemplateGothicLoaded", "TemplateGothicHosted", "TemplateGothicReg", "Template Gothic", "TemplateGothic", "Barlow", system-ui, sans-serif';
+  const MONO = '"JetBrains Mono", ui-monospace, monospace';
+
+  let layout = "side";
+  let app = "google";
+  const current = { url: "", label: null, sheetLabel: null, base: "address" };
+
+  function say(msg, cls) { els.status.textContent = msg; els.status.className = "status " + (cls || ""); }
+
+  // ---------- Link + label ----------
+  function mapsUrl() {
+    const custom = els.custom.value.trim();
+    if (custom) return custom;
+    if (app === "waze") {
+      if (st.place) return "https://waze.com/ul?ll=" + st.place.lat.toFixed(6) + "," + st.place.lng.toFixed(6) + "&navigate=yes";
+      return "https://waze.com/ul?q=" + encodeURIComponent(els.addr.value.trim().replace(/\s*\n\s*/g, ", ")) + "&navigate=yes";
+    }
+    const addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
+    const name = els.name.value.trim();
+    const q = (els.useName.checked && name ? name + ", " : "") + addr;
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+  }
+
+  function wrap(ctx, text, maxW) {
+    const out = [];
+    text.split(/\n/).forEach((para) => {
+      const words = para.split(/\s+/).filter(Boolean);
+      let line = "";
+      words.forEach((w) => {
+        const t = line ? line + " " + w : w;
+        if (ctx.measureText(t).width <= maxW || !line) line = t;
+        else { out.push(line); line = w; }
+      });
+      if (line) out.push(line);
+    });
+    return out;
+  }
+  function breakUrl(ctx, url, maxW) {
+    const out = []; let line = "";
+    for (const ch of url) {
+      if (ctx.measureText(line + ch).width > maxW && line) { out.push(line); line = ch; }
+      else line += ch;
+    }
+    if (line) out.push(line);
+    return out;
+  }
+
+  function buildLabel(dpi, url) {
+    const mm = +els.qrmm.value;
+    const px = (v) => Math.round(v / 25.4 * dpi);
+    const qrPx = px(mm);
+    const s = {
+      qrPx, pad: px(Math.max(3, mm * 0.12)), gap: px(Math.max(3, mm * 0.15)),
+      nameSize: Math.round(qrPx * 0.13), addrSize: Math.round(qrPx * 0.1), urlSize: Math.round(qrPx * 0.055),
+      textW: layout === "side" ? Math.round(qrPx * 1.7) : qrPx + px(10),
+    };
+    const qr = qrcode(0, "M"); qr.addData(url); qr.make();
+    const n = qr.getModuleCount(), quiet = 4, cell = s.qrPx / (n + quiet * 2);
+    const name = els.name.value.trim(), addr = els.addr.value.trim();
+
+    const m = document.createElement("canvas").getContext("2d");
+    const blocks = [];
+    if (name) { m.font = `400 ${s.nameSize}px ${SANS}`; blocks.push({ font: m.font, size: s.nameSize, lines: wrap(m, name, s.textW), color: "#111" }); }
+    if (addr) { m.font = `400 ${s.addrSize}px ${SANS}`; blocks.push({ font: m.font, size: s.addrSize, lines: wrap(m, addr, s.textW), color: "#333" }); }
+    if (els.showUrl.checked) { m.font = `400 ${s.urlSize}px ${MONO}`; blocks.push({ font: m.font, size: s.urlSize, lines: breakUrl(m, url, s.textW), color: "#555", mono: true }); }
+
+    const lh = 1.25, bgap = Math.round(s.addrSize * 0.5);
+    let textH = 0, textW = 0;
+    blocks.forEach((b, i) => {
+      textH += b.lines.length * b.size * lh + (i ? bgap : 0);
+      m.font = b.font;
+      b.lines.forEach((l) => { textW = Math.max(textW, m.measureText(l).width); });
+    });
+    textW = Math.ceil(textW);
+
+    let W, H, qx, qy, tx, ty;
+    if (layout === "side") {
+      W = s.pad * 2 + s.qrPx + (blocks.length ? s.gap + textW : 0);
+      H = s.pad * 2 + Math.max(s.qrPx, textH);
+      qx = s.pad; qy = s.pad + (H - s.pad * 2 - s.qrPx) / 2;
+      tx = s.pad + s.qrPx + s.gap; ty = s.pad + (H - s.pad * 2 - textH) / 2;
+    } else {
+      W = s.pad * 2 + Math.max(s.qrPx, textW);
+      H = s.pad * 2 + s.qrPx + (blocks.length ? s.gap * 0.6 + textH : 0);
+      qx = (W - s.qrPx) / 2; qy = s.pad;
+      tx = null; ty = s.pad + s.qrPx + s.gap * 0.6;
+    }
+    W = Math.ceil(W); H = Math.ceil(H);
+
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#000";
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) {
+      if (qr.isDark(r, col)) {
+        const x0 = Math.round(qx + (col + quiet) * cell), y0 = Math.round(qy + (r + quiet) * cell);
+        const x1 = Math.round(qx + (col + quiet + 1) * cell), y1 = Math.round(qy + (r + quiet + 1) * cell);
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      }
+    }
+    ctx.textBaseline = "top";
+    let y = ty;
+    const svgText = [];
+    blocks.forEach((b, i) => {
+      if (i) y += bgap;
+      ctx.font = b.font; ctx.fillStyle = b.color;
+      b.lines.forEach((l) => {
+        const w = ctx.measureText(l).width;
+        const x = tx === null ? (W - w) / 2 : tx;
+        const yy = y + (b.size * (lh - 1)) / 2;
+        ctx.fillText(l, x, yy);
+        svgText.push({ l, x: tx === null ? W / 2 : tx, y: yy + b.size * 0.8, b });
+        y += b.size * lh;
+      });
+    });
+
+    const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    let path = "";
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) {
+      if (qr.isDark(r, col)) path += `M${(qx + (col + quiet) * cell).toFixed(2)} ${(qy + (r + quiet) * cell).toFixed(2)}h${cell.toFixed(2)}v${cell.toFixed(2)}h-${cell.toFixed(2)}z`;
+    }
+    const anchor = tx === null ? ' text-anchor="middle"' : "";
+    const texts = svgText.map((t) => `<text x="${t.x.toFixed(1)}" y="${t.y.toFixed(1)}" font-family="${t.b.mono ? "JetBrains Mono, Menlo, monospace" : "TemplateGothicReg, Template Gothic, Helvetica, Arial, sans-serif"}" font-size="${t.b.size}" fill="${t.b.color}"${anchor}>${esc(t.l)}</text>`).join("");
+    const mmW = (W / dpi * 25.4).toFixed(1), mmH = (H / dpi * 25.4).toFixed(1);
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${mmW}mm" height="${mmH}mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><a href="${esc(url)}" xlink:href="${esc(url)}" target="_blank"><path d="${path}" fill="#000"/>${texts}</a></svg>`;
+    return { canvas: c, svg, W, H, n, mmW, mmH, dpi };
+  }
+
+  function render() {
+    const url = mapsUrl();
+    current.url = url;
+    els.url.textContent = url;
+    els.open.href = /^https?:\/\//i.test(url) ? url : "#";
+
+    const dpi = +els.dpi.value;
+    current.label = buildLabel(dpi, url);
+    current.sheetLabel = dpi === SHEET.dpi ? current.label : buildLabel(SHEET.dpi, url);
+    const L = current.label;
+    els.out.src = L.canvas.toDataURL("image/png");
+    els.out.style.width = Math.round(L.W / (dpi / 96)) + "px";
+    els.meta.innerHTML = `<span>Image <b>${L.W} × ${L.H} px</b></span><span>Impression <b>${L.mmW} × ${L.mmH} mm</b> à ${dpi} dpi</span><span>QR <b>${L.n} × ${L.n}</b> modules</span>`;
+
+    const name = els.name.value.trim(), addr = els.addr.value.trim();
+    updateMessage();
+    current.base = (name || addr || "address").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "address";
+    schedule();
+  }
+
+  // ---------- Map sheet ----------
+  const SHEET = { dpi: 300, W: 3508, H: 2480 };
+  const mmPx = (mm) => mm / 25.4 * SHEET.dpi; // in sheet px
+  const VIEW_W = 1200;   // the sheet shows the same area as a 1200 px wide Maps window
+  const TS = 256;
+  const MAXZ = 19, MINZ = 13;
+  const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+  const LAYER = {
+    img: (z, x, y) => `${ESRI}World_Imagery/MapServer/tile/${z}/${y}/${x}`,
+    roads: (z, x, y) => `${ESRI}Reference/World_Transportation/MapServer/tile/${z}/${y}/${x}`,
+    places: (z, x, y) => `${ESRI}Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}`,
+  };
+
+  const st = {
+    place: null, center: null, zoom: 18, roads: true, pin: true, bg: "sat", tool: "pan",
+    arrows: { sat: [], shot: [] }, shot: null, live: null,
+  };
+
+  function project(lat, lng) {
+    const s = Math.sin(lat * Math.PI / 180);
+    return [(lng + 180) / 360 * TS, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * TS];
+  }
+  function unproject(x, y) {
+    const n = Math.PI - 2 * Math.PI * y / TS;
+    return { lat: 180 / Math.PI * Math.atan(Math.sinh(n)), lng: x / TS * 360 - 180 };
+  }
+  function view(W, H) {
+    const k = W / VIEW_W * Math.pow(2, st.zoom);
+    const c = project(st.center.lat, st.center.lng);
+    return { W, H, k, cx: c[0], cy: c[1] };
+  }
+  // Arrow coordinates: satellite → world px at zoom 0; screenshot → 0..1 of the sheet.
+  function toOut(v, p) { return st.bg === "sat" ? [(p[0] - v.cx) * v.k + v.W / 2, (p[1] - v.cy) * v.k + v.H / 2] : [p[0] * v.W, p[1] * v.H]; }
+  function fromOut(v, x, y) { return st.bg === "sat" ? [(x - v.W / 2) / v.k + v.cx, (y - v.H / 2) / v.k + v.cy] : [x / v.W, y / v.H]; }
+
+  const tiles = new Map();
+  function tile(url) {
+    let t = tiles.get(url);
+    if (!t) {
+      t = { img: new Image(), ok: false, err: false };
+      t.img.crossOrigin = "anonymous";
+      t.p = new Promise((res) => {
+        t.img.onload = () => { t.ok = true; res(t); schedule(); };
+        t.img.onerror = () => { t.err = true; res(t); schedule(); };
+      });
+      t.img.src = url;
+      tiles.set(url, t);
+    }
+    return t;
+  }
+  function tileList(v, layerFn, z) {
+    const out = [], n = Math.pow(2, z), f = v.k / n;   // sheet px per tile-world px
+    const x0 = v.cx * n - v.W / 2 / f, y0 = v.cy * n - v.H / 2 / f;
+    const tx0 = Math.floor(x0 / TS), tx1 = Math.floor((x0 + v.W / f) / TS);
+    const ty0 = Math.max(0, Math.floor(y0 / TS)), ty1 = Math.min(n - 1, Math.floor((y0 + v.H / f) / TS));
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+      const wx = ((tx % n) + n) % n;
+      const dx = (tx * TS - x0) * f, dy = (ty * TS - y0) * f;
+      out.push({ t: tile(layerFn(z, wx, ty)), x: Math.round(dx), y: Math.round(dy), w: Math.round(dx + TS * f) - Math.round(dx), h: Math.round(dy + TS * f) - Math.round(dy) });
+    }
+    return out;
+  }
+  function mapLayers(v) {
+    const iz = Math.max(0, Math.min(MAXZ, Math.round(Math.log2(v.k) + 0.2)));
+    const layers = [tileList(v, LAYER.img, iz)];
+    if (st.roads) { const lz = Math.min(MAXZ, st.zoom); layers.push(tileList(v, LAYER.roads, lz), tileList(v, LAYER.places, lz)); }
+    return layers;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+  function haloText(ctx, text, x, y, size, align) {
+    ctx.font = `400 ${size}px ${SANS}`; ctx.textAlign = align || "left"; ctx.textBaseline = "middle";
+    ctx.lineJoin = "round"; ctx.lineWidth = size * 0.28; ctx.strokeStyle = "rgba(0,0,0,.72)";
+    ctx.strokeText(text, x, y); ctx.fillStyle = "#fff"; ctx.fillText(text, x, y);
+  }
+  function drawPin(ctx, x, y, s) {
+    const h = mmPx(9) * s, r = h * 0.36, cy = y - h + r;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = r * 0.5; ctx.shadowOffsetY = r * 0.15;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.bezierCurveTo(x - r * 0.35, y - r * 0.9, x - r, cy + r * 0.75, x - r, cy);
+    ctx.arc(x, cy, r, Math.PI, 0);
+    ctx.bezierCurveTo(x + r, cy + r * 0.75, x + r * 0.35, y - r * 0.9, x, y);
+    ctx.fillStyle = "#ea4335"; ctx.fill();
+    ctx.restore();
+    ctx.lineWidth = Math.max(1, r * 0.08); ctx.strokeStyle = "#a52714"; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, cy, r * 0.38, 0, Math.PI * 2); ctx.fillStyle = "#6e1409"; ctx.fill();
+    return { top: y - h, r };
+  }
+  function drawArrow(ctx, pts, s) {
+    if (pts.length < 2) return;
+    const w = mmPx(1.7) * s, head = w * 3.4;
+    // direction at the tip, from a point about one head-length back
+    const tip = pts[pts.length - 1];
+    let back = pts[0];
+    for (let i = pts.length - 2; i >= 0; i--) { if (Math.hypot(tip[0] - pts[i][0], tip[1] - pts[i][1]) >= head) { back = pts[i]; break; } }
+    const ang = Math.atan2(tip[1] - back[1], tip[0] - back[0]);
+    const base = [tip[0] - Math.cos(ang) * head * 0.8, tip[1] - Math.sin(ang) * head * 0.8];
+    // trim the line so it ends under the head
+    const line = pts.filter((p) => Math.hypot(tip[0] - p[0], tip[1] - p[1]) > head * 0.8);
+    line.push(base);
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = w * 0.8;
+    ctx.strokeStyle = "#e5402a"; ctx.fillStyle = "#e5402a"; ctx.lineWidth = w; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(line[0][0], line[0][1]);
+    for (let i = 1; i < line.length - 1; i++) {
+      const mx = (line[i][0] + line[i + 1][0]) / 2, my = (line[i][1] + line[i + 1][1]) / 2;
+      ctx.quadraticCurveTo(line[i][0], line[i][1], mx, my);
+    }
+    ctx.lineTo(base[0], base[1]); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tip[0], tip[1]);
+    ctx.lineTo(tip[0] - Math.cos(ang - 0.45) * head, tip[1] - Math.sin(ang - 0.45) * head);
+    ctx.lineTo(tip[0] - Math.cos(ang + 0.45) * head, tip[1] - Math.sin(ang + 0.45) * head);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function message(ctx, W, H, text) {
+    ctx.fillStyle = "#3b463d"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#dfe6df"; ctx.font = `400 ${Math.round(W * 0.018)}px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    wrap(ctx, text, W * 0.6).forEach((l, i, a) => ctx.fillText(l, W / 2, H * 0.42 + (i - (a.length - 1) / 2) * W * 0.026));
+  }
+
+  // Draws the whole sheet at W×H. With wait=true it waits for every map tile (export).
+  async function drawSheet(ctx, W, H, wait) {
+    const s = W / SHEET.W;
+    let failed = 0;
+    ctx.save();
+    if (st.bg === "sat") {
+      if (!st.center) message(ctx, W, H, "Placez le lieu sur la carte : cliquez sur Chercher l’adresse, ou saisissez des coordonnées.");
+      else {
+        const v = view(W, H);
+        const layers = mapLayers(v);
+        if (wait) await Promise.all(layers.flat().map((i) => i.t.p));
+        ctx.fillStyle = "#4a5547"; ctx.fillRect(0, 0, W, H);
+        layers.forEach((list) => list.forEach((i) => { if (i.t.ok) ctx.drawImage(i.t.img, i.x, i.y, i.w, i.h); else if (i.t.err) failed++; }));
+        if (failed && !standalone && layers[0].every((i) => !i.t.ok)) message(ctx, W, H, "L’imagerie satellite ne peut pas se charger dans Claude. Utilisez « Version hors ligne » et ouvrez le fichier dans Safari, ou passez à Ma capture.");
+        st.arrows.sat.forEach((a) => drawArrow(ctx, a.map((p) => toOut(v, p)), s));
+        if (st.live && st.bg === "sat") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
+        if (st.pin && st.place) {
+          const pp = toOut(v, project(st.place.lat, st.place.lng));
+          const pin = drawPin(ctx, pp[0], pp[1], s);
+          const label = els.name.value.trim() || els.addr.value.trim().split(/\n|,/)[0];
+          if (label) {
+            const size = mmPx(4.2) * s;
+            ctx.font = `400 ${size}px ${SANS}`;
+            const lines = wrap(ctx, label, mmPx(55) * s).slice(0, 3);
+            const x = pp[0] + pin.r * 1.35, y0 = pin.top + pin.r - (lines.length - 1) * size * 0.6;
+            lines.forEach((l, i) => haloText(ctx, l, x, y0 + i * size * 1.2, size));
+          }
+        }
+        const as = mmPx(2.4) * s;
+        haloText(ctx, "Imagerie © Esri, Maxar, Earthstar Geographics", W - mmPx(4) * s, H - mmPx(3) * s, as, "right");
+      }
+    } else {
+      if (!st.shot) message(ctx, W, H, "Choisissez une capture, collez-la avec ⌘V, ou déposez une image ici.");
+      else {
+        const iw = st.shot.naturalWidth, ih = st.shot.naturalHeight, sc = Math.max(W / iw, H / ih);
+        ctx.drawImage(st.shot, (W - iw * sc) / 2, (H - ih * sc) / 2, iw * sc, ih * sc);
+      }
+      const v = { W, H };
+      st.arrows.shot.forEach((a) => drawArrow(ctx, a.map((p) => toOut(v, p)), s));
+      if (st.live && st.bg === "shot") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
+    }
+    // QR card, bottom-left, true print size
+    const L = current.sheetLabel;
+    if (L) {
+      const m = mmPx(5) * s, cw = L.W * s, ch = L.H * s, x = m, y = H - m - ch, r = mmPx(3) * s;
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
+      roundRect(ctx, x, y, cw, ch, r); ctx.fillStyle = "#fff"; ctx.fill();
+      ctx.restore();
+      ctx.save(); roundRect(ctx, x, y, cw, ch, r); ctx.clip();
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(L.canvas, x, y, cw, ch);
+      ctx.restore();
+    }
+    ctx.restore();
+    return failed;
+  }
+
+  // Preview canvas
+  let raf = 0;
+  function schedule() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawPreview(); }); }
+  function drawPreview() {
+    const c = els.sheet, rect = c.getBoundingClientRect();
+    if (!rect.width) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = Math.round(rect.width * dpr), H = Math.round(W * SHEET.H / SHEET.W);
+    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+    drawSheet(c.getContext("2d"), W, H, false);
+    $("zoomVal").textContent = st.zoom;
+    $("undo").disabled = !st.arrows[st.bg].length;
+    $("clear").disabled = !st.arrows[st.bg].length;
+  }
+  if (window.ResizeObserver) new ResizeObserver(schedule).observe(els.sheet); else window.addEventListener("resize", schedule);
+
+  // Pointer: move map or draw arrows
+  let drag = null;
+  function canvasPt(e) {
+    const r = els.sheet.getBoundingClientRect();
+    return [(e.clientX - r.left) * els.sheet.width / r.width, (e.clientY - r.top) * els.sheet.height / r.height];
+  }
+  function curView() { return st.bg === "sat" ? view(els.sheet.width, els.sheet.height) : { W: els.sheet.width, H: els.sheet.height }; }
+  els.sheet.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const p = canvasPt(e), v = curView();
+    if (st.tool === "arrow") {
+      if (st.bg === "sat" && !st.center) return;
+      st.live = [fromOut(v, p[0], p[1])];
+      drag = { mode: "arrow", last: p };
+    } else {
+      if (st.bg !== "sat" || !st.center) return;
+      drag = { mode: "pan", start: p, c0: project(st.center.lat, st.center.lng), k: v.k };
+      els.sheet.classList.add("dragging");
+    }
+    els.sheet.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  els.sheet.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const p = canvasPt(e);
+    if (drag.mode === "pan") {
+      st.center = unproject(drag.c0[0] - (p[0] - drag.start[0]) / drag.k, drag.c0[1] - (p[1] - drag.start[1]) / drag.k);
+    } else {
+      const minStep = els.sheet.width * 0.006;
+      if (Math.hypot(p[0] - drag.last[0], p[1] - drag.last[1]) < minStep) return;
+      drag.last = p; st.live.push(fromOut(curView(), p[0], p[1]));
+    }
+    schedule();
+  });
+  function endDrag() {
+    if (!drag) return;
+    if (drag.mode === "arrow" && st.live && st.live.length >= 3) st.arrows[st.bg].push(st.live);
+    st.live = null; drag = null;
+    els.sheet.classList.remove("dragging");
+    schedule();
+  }
+  els.sheet.addEventListener("pointerup", endDrag);
+  els.sheet.addEventListener("pointercancel", endDrag);
+  els.sheet.addEventListener("wheel", (e) => {
+    if (st.bg !== "sat" || !st.center) return;
+    e.preventDefault();
+    if (Math.abs(e.deltaY) < 4) return;
+    setZoom(st.zoom + (e.deltaY < 0 ? 1 : -1));
+  }, { passive: false });
+
+  function setZoom(z) { st.zoom = Math.max(MINZ, Math.min(MAXZ, z)); schedule(); }
+  $("zoomIn").addEventListener("click", () => setZoom(st.zoom + 1));
+  $("zoomOut").addEventListener("click", () => setZoom(st.zoom - 1));
+  $("undo").addEventListener("click", () => { st.arrows[st.bg].pop(); schedule(); });
+  $("clear").addEventListener("click", () => { st.arrows[st.bg] = []; schedule(); });
+  $("roads").addEventListener("change", (e) => { st.roads = e.target.checked; schedule(); });
+  $("pin").addEventListener("change", (e) => { st.pin = e.target.checked; schedule(); });
+  $("recenter").addEventListener("click", () => { if (st.place) { st.center = { ...st.place }; schedule(); } });
+
+  function segment(id, cb) {
+    $(id).addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      $(id).querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      cb(b.dataset.v);
+    });
+  }
+  segment("bgSeg", (v) => { st.bg = v; $("satOpts").hidden = v !== "sat"; $("shotOpts").hidden = v !== "shot"; $("zoomGroup").hidden = v !== "sat"; syncTool(); schedule(); });
+  segment("toolSeg", (v) => { st.tool = v; syncTool(); });
+  function syncTool() { els.sheet.classList.toggle("drawing", st.tool === "arrow" || st.bg === "shot"); }
+  segment("layout", (v) => { layout = v; render(); });
+
+  // Location
+  function parseCoords(text) {
+    const t = text.trim();
+    let m = t.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/) || t.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/) || t.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+    if (!m) return null;
+    const lat = +m[1], lng = +m[2];
+    return Math.abs(lat) <= 85 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+  }
+  function setPlace(p, note) {
+    if (st.place) {
+      const a = project(st.place.lat, st.place.lng), b = project(p.lat, p.lng);
+      if (Math.hypot(a[0] - b[0], a[1] - b[1]) * Math.pow(2, 18) > 1500) st.arrows.sat = []; // moved far: old arrows no longer apply
+    }
+    st.place = p; st.center = { ...p };
+    render();
+    els.coords.value = p.lat.toFixed(7) + ", " + p.lng.toFixed(7);
+    if (note) say(note, "ok");
+    schedule();
+  }
+  els.coords.addEventListener("change", () => {
+    const p = parseCoords(els.coords.value);
+    if (p) setPlace(p); else say("Coordonnées illisibles. Utilisez la forme 46.18793, 6.19892.", "warn");
+  });
+  els.custom.addEventListener("change", () => { const p = parseCoords(els.custom.value); if (p) setPlace(p, "Position reprise du lien Google Maps."); });
+
+  async function geocode(q) {
+    try {
+      const r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" + encodeURIComponent(q), { headers: { "Accept-Language": "fr,en" } });
+      const j = await r.json();
+      if (j && j[0]) return { lat: +j[0].lat, lng: +j[0].lon, label: j[0].display_name };
+    } catch (_) {}
+    try {
+      const r = await fetch("https://photon.komoot.io/api/?limit=1&q=" + encodeURIComponent(q));
+      const j = await r.json();
+      const f = j && j.features && j.features[0];
+      if (f) return { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] };
+    } catch (_) {}
+    return null;
+  }
+  let lastLookup = (els.addr.value.trim() + "|" + els.name.value.trim()), lookupSeq = 0, lookupTimer = 0;
+  async function lookup(auto) {
+    const addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", "), name = els.name.value.trim();
+    if (!addr && !name) { if (!auto) say("Saisissez d’abord une adresse.", "warn"); return; }
+    if (!standalone) { if (!auto) say("La recherche d’adresse ne fonctionne que dans la version hors ligne. Saisissez les coordonnées, ou utilisez Version hors ligne.", "warn"); return; }
+    lastLookup = els.addr.value.trim() + "|" + name;
+    const seq = ++lookupSeq;
+    say("Recherche de l’adresse…");
+    const hit = (addr && await geocode(addr)) || (name && await geocode(name + (addr ? ", " + addr : "")));
+    if (seq !== lookupSeq) return; // a newer lookup started while this one ran
+    if (hit) setPlace(hit, "Carte centrée sur l’adresse. Faites-la glisser pour ajuster, puis vérifiez le repère.");
+    else say("Adresse introuvable pour l’instant. Essayez rue, code postal et ville, ou collez des coordonnées.", "warn");
+  }
+  $("find").addEventListener("click", () => { clearTimeout(lookupTimer); lookup(false); });
+  function autoLookup() {
+    clearTimeout(lookupTimer);
+    lookupTimer = setTimeout(() => {
+      if (els.addr.value.trim() + "|" + els.name.value.trim() !== lastLookup) lookup(true);
+    }, 1200);
+  }
+  els.addr.addEventListener("input", autoLookup);
+  els.name.addEventListener("input", () => { if (!els.addr.value.trim()) autoLookup(); });
+  els.addr.addEventListener("blur", () => { if (els.addr.value.trim() + "|" + els.name.value.trim() !== lastLookup) { clearTimeout(lookupTimer); lookup(true); } });
+
+  // Screenshot background
+  function useShot(file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    const img = new Image();
+    img.onload = () => { st.shot = img; if (st.bg !== "shot") $("bgSeg").querySelector('[data-v="shot"]').click(); schedule(); say("Capture chargée.", "ok"); };
+    img.onerror = () => say("Impossible d’ouvrir cette image.", "warn");
+    img.src = URL.createObjectURL(file);
+  }
+  $("shotFile").addEventListener("change", (e) => useShot(e.target.files && e.target.files[0]));
+  window.addEventListener("paste", (e) => {
+    const items = e.clipboardData ? [...e.clipboardData.items] : [];
+    const it = items.find((i) => i.kind === "file" && /^image\//.test(i.type));
+    if (it) { e.preventDefault(); useShot(it.getAsFile()); }
+  });
+  const box = $("sheetBox");
+  box.addEventListener("dragover", (e) => { e.preventDefault(); $("dropNote").hidden = false; });
+  box.addEventListener("dragleave", () => { $("dropNote").hidden = true; });
+  box.addEventListener("drop", (e) => { e.preventDefault(); $("dropNote").hidden = true; useShot(e.dataTransfer.files && e.dataTransfer.files[0]); });
+
+  // Tabs
+  function tab(which) {
+    [["sheet", "tabSheet", "paneSheet"], ["label", "tabLabel", "paneLabel"], ["msg", "tabMsg", "paneMsg"]].forEach(([k, t, p]) => {
+      $(t).setAttribute("aria-selected", String(k === which)); $(p).hidden = k !== which;
+    });
+    if (which === "sheet") schedule();
+    if (which === "msg") updateMessage();
+  }
+  $("tabSheet").addEventListener("click", () => tab("sheet"));
+  $("tabLabel").addEventListener("click", () => tab("label"));
+  $("tabMsg").addEventListener("click", () => tab("msg"));
+
+  // ---------- Team message ----------
+  function messageText() {
+    const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", "), note = $("note").value.trim();
+    const p = st.place;
+    const q = encodeURIComponent((name ? name + ", " : "") + addr);
+    const ll = p ? p.lat.toFixed(6) + "," + p.lng.toFixed(6) : "";
+    const lines = [];
+    if (name) lines.push("\u{1F4CD} " + name);
+    if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
+    if (note) lines.push("", "Accès : " + note);
+    const links = $("lkGoogle").checked || $("lkWaze").checked || $("lkApple").checked;
+    lines.push("");
+    if (links) lines.push("Itinéraire :");
+    if ($("lkGoogle").checked) lines.push("", "Google Maps :", (p ? "https://www.google.com/maps/search/?api=1&query=" + ll : "https://www.google.com/maps/search/?api=1&query=" + q));
+    if ($("lkWaze").checked) lines.push("", "Waze :", (p ? "https://waze.com/ul?ll=" + ll + "&navigate=yes" : "https://waze.com/ul?q=" + encodeURIComponent(addr) + "&navigate=yes"));
+    if ($("lkApple").checked) lines.push("", "Plans (Apple) :", (p ? "https://maps.apple.com/?ll=" + ll + "&q=" + encodeURIComponent(name || addr || "Lieu") : "https://maps.apple.com/?q=" + q));
+    if ($("lkGps").checked && p) lines.push(...(links ? [""] : []), "Coordonnées GPS : " + p.lat.toFixed(6) + ", " + p.lng.toFixed(6));
+    while (lines.length && lines[lines.length - 1] === "") lines.pop();
+    return lines.join("\n");
+  }
+  function updateMessage() {
+    if (!$("msg")) return;
+    const text = messageText();
+    $("msg").value = text;
+    $("msgWa").href = "https://wa.me/?text=" + encodeURIComponent(text);
+    const subject = "Adresse : " + (els.name.value.trim() || els.addr.value.trim().split(/\n/)[0] || "lieu de rendez-vous");
+    $("msgMail").href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text);
+    $("msgMail").hidden = !standalone;
+    $("msgHint").textContent = st.place ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
+  }
+  ["note", "lkGoogle", "lkWaze", "lkApple", "lkGps"].forEach((id) => $(id).addEventListener(id === "note" ? "input" : "change", updateMessage));
+  $("msgCopy").addEventListener("click", () => {
+    const ta = $("msg"), sel = () => { ta.focus(); ta.select(); say("Message sélectionné. Appuyez sur ⌘C pour copier."); };
+    try { navigator.clipboard.writeText(ta.value).then(() => say("Message copié. Collez-le dans WhatsApp ou votre e-mail.", "ok"), sel); } catch (_) { sel(); }
+  });
+
+  // ---------- Saving ----------
+  let downloads = null;
+  if (!standalone) {
+    window.claude.use("downloads").then((d) => { downloads = d; }).catch(() => {});
+    $("offline").hidden = false;
+  }
+  function browserDownload(blob, filename) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  async function deliver(blob, filename) {
+    if (standalone) { browserDownload(blob, filename); say("Téléchargé : " + filename, "ok"); return; }
+    if (!downloads) { say("Téléchargement indisponible ici. Faites un clic droit sur l’aperçu pour enregistrer l’image.", "warn"); return; }
+    try { await downloads.save({ filename, data: blob }); say("Enregistré : " + filename, "ok"); }
+    catch (e) {
+      const code = e && e.code;
+      if (code === "declined") say("Téléchargement annulé.");
+      else if (code === "rate_limited") say("Une demande de téléchargement est déjà ouverte. Terminez-la, puis réessayez.", "warn");
+      else say("Impossible d’enregistrer le fichier ici. Faites un clic droit sur l’aperçu pour enregistrer l’image.", "warn");
+    }
+  }
+  const toBlob = (c, type) => new Promise((res, rej) => { try { c.toBlob((b) => b ? res(b) : rej(new Error("empty")), type, 0.92); } catch (err) { rej(err); } });
+
+  async function saveLabel(kind) {
+    const L = current.label;
+    if (kind === "svg") return deliver(new Blob([L.svg], { type: "image/svg+xml" }), "qr-" + current.base + ".svg");
+    try { deliver(await toBlob(L.canvas, kind === "jpg" ? "image/jpeg" : "image/png"), "qr-" + current.base + "." + kind); }
+    catch (_) { say("Impossible de créer l’image.", "warn"); }
+  }
+  $("dlPng").addEventListener("click", () => saveLabel("png"));
+  $("dlJpg").addEventListener("click", () => saveLabel("jpg"));
+  $("dlSvg").addEventListener("click", () => saveLabel("svg"));
+
+  async function saveSheet(kind) {
+    say("Création du plan A4 à 300 dpi…");
+    const c = document.createElement("canvas");
+    c.width = SHEET.W; c.height = SHEET.H;
+    try {
+      const failed = await drawSheet(c.getContext("2d"), SHEET.W, SHEET.H, true);
+      const blob = await toBlob(c, kind === "jpg" ? "image/jpeg" : "image/png");
+      await deliver(blob, "plan-" + current.base + "." + kind);
+      if (failed) say(`Enregistré, mais ${failed} tuile${failed > 1 ? "s" : ""} de carte n’${failed > 1 ? "ont" : "a"} pas chargé. Vérifiez l’image, et dézoomez d’un cran si des zones sont vides.`, "warn");
+    } catch (_) {
+      say("Le navigateur a bloqué l’export de l’image satellite. Ouvrez la version hors ligne dans Safari ou Chrome, ou utilisez Ma capture.", "warn");
+    }
+  }
+  $("sheetJpg").addEventListener("click", () => saveSheet("jpg"));
+
+  // ---------- Share (iPhone / Android share sheet) ----------
+  const canShareFiles = (() => {
+    try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([new Blob(["x"], { type: "image/jpeg" })], "t.jpg", { type: "image/jpeg" })] })); }
+    catch (_) { return false; }
+  })();
+  const canShareText = !!navigator.share;
+  if (standalone && canShareText) {
+    document.querySelectorAll(".share").forEach((el) => {
+      if ((el.id === "sheetShare" || el.htmlFor === "msgWithSheet") && !canShareFiles) return;
+      el.hidden = false;
+    });
+    if (!$("msgShare").hidden) $("msgCopy").classList.remove("primary");
+  }
+  function shareSig() {
+    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, $("note").value]);
+  }
+  let prepared = null; // { sig, file } — iOS only opens the share sheet right after a tap, so a slow render is done first
+  async function sheetFile() {
+    const sig = shareSig();
+    if (prepared && prepared.sig === sig) return { file: prepared.file, fresh: false };
+    say("Préparation du plan A4…");
+    const c = document.createElement("canvas");
+    c.width = SHEET.W; c.height = SHEET.H;
+    await drawSheet(c.getContext("2d"), SHEET.W, SHEET.H, true);
+    const blob = await toBlob(c, "image/jpeg");
+    prepared = { sig, file: new File([blob], "plan-" + current.base + ".jpg", { type: "image/jpeg" }) };
+    return { file: prepared.file, fresh: true };
+  }
+  async function shareNow(withSheet, btn) {
+    const text = messageText(), title = els.name.value.trim() || "Adresse";
+    try {
+      if (!withSheet) { await navigator.share({ title, text }); say("Partagé.", "ok"); return; }
+      const { file, fresh } = await sheetFile();
+      const data = { files: [file], title, text };
+      const payload = navigator.canShare(data) ? data : { files: [file] };
+      try { await navigator.share(payload); say("Partagé.", "ok"); }
+      catch (e) {
+        if (e && e.name === "AbortError") { say("Partage annulé."); return; }
+        if (fresh && e && e.name === "NotAllowedError") { btn.classList.add("primary"); say("Plan prêt. Touchez à nouveau « " + btn.textContent + " » pour l’envoyer.", "ok"); return; }
+        throw e;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") { say("Partage annulé."); return; }
+      say("Le partage n’a pas fonctionné. Téléchargez le JPG et copiez le message à la place.", "warn");
+    }
+  }
+  $("sheetShare").addEventListener("click", (e) => shareNow(true, e.currentTarget));
+  $("msgShare").addEventListener("click", (e) => shareNow(canShareFiles && $("msgWithSheet").checked, e.currentTarget));
+  $("sheetPng").addEventListener("click", () => saveSheet("png"));
+  $("offline").addEventListener("click", async () => {
+    try {
+      const r = await fetch("easy-route.html");
+      if (!r.ok) throw new Error();
+      deliver(await r.blob(), "easy-route.html");
+    } catch (_) { say("Impossible de récupérer la version hors ligne.", "warn"); }
+  });
+
+  // ---------- Misc inputs ----------
+  $("copy").addEventListener("click", () => {
+    const sel = () => { const r = document.createRange(); r.selectNodeContents(els.url); const s = getSelection(); s.removeAllRanges(); s.addRange(r); say("Lien sélectionné. Appuyez sur ⌘C pour copier."); };
+    try { navigator.clipboard.writeText(current.url).then(() => say("Lien copié", "ok"), sel); } catch (_) { sel(); }
+  });
+
+  let exampleShown = true;
+  ["name", "addr", "custom"].forEach((id) => $(id).addEventListener("input", () => {
+    if (exampleShown && id !== "custom") { $("exampleTag").hidden = true; exampleShown = false; }
+    render();
+  }));
+  ["useName", "qrmm", "dpi", "showUrl"].forEach((id) => $(id).addEventListener("change", render));
+  segment("appSeg", (v) => {
+    app = v;
+    $("useNameRow").hidden = v === "waze";
+    $("appHint").textContent = v === "waze" ? "Ouvre Waze et lance le guidage vers le repère de la carte. Sans l’app, le site Waze s’ouvre." : "Ouvre le lieu dans Google Maps, sur n’importe quel téléphone.";
+    render();
+  });
+  $("form").addEventListener("submit", (e) => e.preventDefault());
+
+  // Font
+  let loadedFont = "";
+  function hasFont(fam) {
+    const c = document.createElement("canvas").getContext("2d"), t = "QRgjWMabc0123 Chambéry";
+    return ["monospace", "serif"].some((f) => { c.font = "40px " + f; const a = c.measureText(t).width; c.font = '40px "' + fam + '", ' + f; return c.measureText(t).width !== a; });
+  }
+  function fontState() {
+    const el = $("fontState");
+    if (loadedFont) { el.textContent = "Police utilisée : " + loadedFont + " (chargée depuis le fichier)."; el.style.color = "var(--ok)"; return; }
+    const found = ["TemplateGothicHosted", "TemplateGothicReg", "Template Gothic", "TemplateGothic"].find(hasFont);
+    if (found) { el.textContent = "Template Gothic trouvée sur cet appareil."; el.style.color = "var(--ok)"; }
+    else { el.textContent = "Template Gothic n’est pas installée ici : une police de remplacement est utilisée. Chargez le fichier de la police."; el.style.color = "var(--warn)"; }
+  }
+  $("fontFile").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try {
+      const face = new FontFace("TemplateGothicLoaded", await f.arrayBuffer());
+      await face.load(); document.fonts.add(face);
+      loadedFont = f.name; fontState(); render();
+    } catch (_) { say("Ce fichier n’est pas une police lisible. Essayez la version .ttf ou .otf.", "warn"); }
+  });
+
+  // ---------- Start ----------
+  const start = parseCoords(els.coords.value);
+  if (start) { st.place = start; st.center = { ...start }; }
+  $("sheetNote").textContent = standalone ? "" : "Le satellite et la recherche d’adresse demandent la version hors ligne";
+  syncTool();
+  render(); fontState();
+  if (document.fonts && document.fonts.load) {
+    Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('400 40px "TemplateGothicHosted"').catch(() => [])]).then(() => { render(); fontState(); }, () => {});
+  }
+})();
+</script>
+
+</body>
+</html>
