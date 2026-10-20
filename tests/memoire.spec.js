@@ -1,5 +1,15 @@
 const { test, expect, fixture, placePoint } = require("./helpers");
 
+// Le logo est-il enregistré dans la base du navigateur ?
+const savedLogo = (page) => page.evaluate(() => new Promise((res) => {
+  const req = indexedDB.open("easyroute", 1);
+  req.onsuccess = () => {
+    const get = req.result.transaction("fonts").objectStore("fonts").get("logo");
+    get.onsuccess = () => res(!!get.result); get.onerror = () => res(false);
+  };
+  req.onerror = () => res(false);
+}));
+
 test("la session est reprise après réouverture, « Nouveau lieu » repart de zéro", async ({ page }) => {
   await page.fill("#contactName", "Julien");
   await page.click('#appSeg [data-v="waze"]');
@@ -59,9 +69,11 @@ test("lieux : export puis import d’un fichier", async ({ page }) => {
 test("le logo est mémorisé, puis oublié avec « Retirer »", async ({ page }) => {
   await page.setInputFiles("#logoFile", fixture("logo-marges.png"));
   await expect(page.locator("#logoClear")).toBeEnabled();
+  await expect.poll(() => savedLogo(page)).toBe(true); // enregistré sur l'appareil
   await page.reload();
   await expect(page.locator("#logoClear")).toBeEnabled();
   await page.click("#logoClear");
+  await expect.poll(() => savedLogo(page)).toBe(false);
   await page.reload();
   await expect(page.locator("#logoClear")).toBeDisabled();
 });
