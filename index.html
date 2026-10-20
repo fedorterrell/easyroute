@@ -203,6 +203,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         <summary><span class="lbl">Infos pratiques</span> <span class="hint">(facultatif)</span></summary>
         <div class="info-body">
           <div class="field">
+            <label for="eventName">Événement</label>
+            <input type="text" id="eventName" placeholder="Concert — Tournée 2026">
+          </div>
+          <div class="field">
             <span class="lbl" id="callLbl">Get-In</span>
             <div class="pair" role="group" aria-labelledby="callLbl">
               <input type="date" id="callDate" aria-label="Date du Get-In">
@@ -743,19 +747,24 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   // White card with the practical info, bottom-aligned to `bottom`, starting at x.
   function drawInfoCard(ctx, x, bottom, maxRight, s) {
     if (!$("infoOnSheet").checked) return;
-    const rows = infoRows();
-    if (!rows.length) return;
+    const rows = infoRows(), event = $("eventName").value.trim();
+    if (!rows.length && !event) return;
     const pad = mmPx(3.6) * s, ls = mmPx(2.5) * s, vs = mmPx(3.6) * s, colGap = mmPx(3.5) * s, lh = 1.28, rowGap = mmPx(1.4) * s;
+    const ts = mmPx(4.8) * s, titleFont = `600 ${ts}px ${SANS}`;
     const labelFont = `400 ${ls}px ${SANS}`, valueFont = `400 ${vs}px ${SANS}`;
     ctx.font = labelFont;
     const labels = rows.map((r) => r[0].toUpperCase());
-    const labelW = Math.max(...labels.map((l) => ctx.measureText(l).width));
+    const labelW = rows.length ? Math.max(...labels.map((l) => ctx.measureText(l).width)) : 0;
     const maxValW = Math.max(mmPx(30) * s, Math.min(mmPx(88) * s, maxRight - x - pad * 2 - labelW - colGap));
     ctx.font = valueFont;
     const wrapped = rows.map((r) => wrap(ctx, r[1], maxValW).slice(0, 4));
-    const valW = Math.max(...wrapped.flat().map((l) => ctx.measureText(l).width));
-    const h = pad * 2 + wrapped.reduce((a, ls2) => a + ls2.length * vs * lh, 0) + rowGap * (rows.length - 1);
-    const w = pad * 2 + labelW + colGap + valW;
+    const valW = rows.length ? Math.max(...wrapped.flat().map((l) => ctx.measureText(l).width)) : 0;
+    ctx.font = titleFont;
+    const titleLines = event ? wrap(ctx, event, Math.max(labelW + colGap + maxValW, mmPx(60) * s)).slice(0, 2) : [];
+    const titleW = titleLines.length ? Math.max(...titleLines.map((l) => ctx.measureText(l).width)) : 0;
+    const titleH = titleLines.length * ts * 1.2 + (titleLines.length && rows.length ? mmPx(2.2) * s : 0);
+    const h = pad * 2 + titleH + wrapped.reduce((a, ls2) => a + ls2.length * vs * lh, 0) + rowGap * Math.max(0, rows.length - 1);
+    const w = pad * 2 + Math.max(rows.length ? labelW + colGap + valW : 0, titleW);
     const y = bottom - h, r = mmPx(3) * s;
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
@@ -764,6 +773,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     ctx.save();
     ctx.textAlign = "left"; ctx.textBaseline = "middle";
     let cy = y + pad;
+    titleLines.forEach((l) => { ctx.font = titleFont; ctx.fillStyle = "#111"; ctx.fillText(l, x + pad, cy + ts * 0.6); cy += ts * 1.2; });
+    if (titleLines.length && rows.length) cy += mmPx(2.2) * s;
     rows.forEach((row, i) => {
       const mid = cy + vs * lh / 2;
       ctx.font = labelFont; ctx.fillStyle = "#6b7480";
@@ -1302,7 +1313,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   }
   function messageText() {
     const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
-    const lines = [];
+    const lines = [], event = $("eventName").value.trim();
+    if (event) lines.push("\u{1F3AB} " + event, "");
     if (name) lines.push("\u{1F4CD} " + name);
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
     const info = infoRows();
@@ -1324,14 +1336,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("msg").value = text;
     $("msgWa").href = "https://wa.me/?text=" + encodeURIComponent(text);
     const call = callText();
-    const subject = "Adresse : " + (els.name.value.trim() || els.addr.value.trim().split(/\n/)[0] || "lieu de rendez-vous") + (call ? " — " + call : "");
+    const event = $("eventName").value.trim(), place = els.name.value.trim() || els.addr.value.trim().split(/\n/)[0];
+    const subject = (event ? event + " — " + (place || "lieu") : "Adresse : " + (place || "lieu de rendez-vous")) + (call ? " — " + call : "");
     $("msgMail").href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(text);
     $("msgMail").hidden = !standalone;
     $("msgHint").textContent = st.place
       ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (placedPois().length ? " Chaque point utile a ses propres liens." : "")
       : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
   }
-  ["callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((id) =>
+  ["eventName", "callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((id) =>
     $(id).addEventListener(/^(callDate|callTime|infoOnSheet)$/.test(id) ? "change" : "input", () => { updateMessage(); schedule(); }));
   $("msgCopy").addEventListener("click", () => {
     const ta = $("msg"), sel = () => { ta.focus(); ta.select(); say("Message sélectionné. Appuyez sur ⌘C pour copier."); };
@@ -1402,7 +1415,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (!$("msgShare").hidden) $("msgCopy").classList.remove("primary");
   }
   function shareSig() {
-    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.logoData.length, st.logoMm, st.logoCard, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows()]);
+    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.logoData.length, st.logoMm, st.logoCard, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows(), $("eventName").value]);
   }
   let prepared = null; // { sig, file } — iOS only opens the share sheet right after a tap, so a slow render is done first
   async function sheetFile() {
@@ -1417,7 +1430,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return { file: prepared.file, fresh: true };
   }
   async function shareNow(withSheet, btn) {
-    const text = messageText(), title = els.name.value.trim() || "Adresse";
+    const text = messageText(), title = $("eventName").value.trim() || els.name.value.trim() || "Adresse";
     try {
       if (!withSheet) { await navigator.share({ title, text }); say("Partagé.", "ok"); return; }
       const { file, fresh } = await sheetFile();
@@ -1524,7 +1537,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   // ---------- Session & saved venues ----------
   // Everything describing the job (not the device settings) is captured in a snapshot.
   const JOB_FIELDS = ["name", "addr", "custom", "coords", "useName", "qrmm", "showUrl", "roads", "pin",
-    "callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"];
+    "eventName", "callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"];
   function snapshot() {
     const fields = {};
     JOB_FIELDS.forEach((id) => { const el = $(id); fields[id] = el.type === "checkbox" ? el.checked : el.value; });
@@ -1573,7 +1586,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     });
   }
   confirmClick($("venueNew"), "Tout effacer ?", () => {
-    applyState({ fields: { name: "", addr: "", custom: "", coords: "", callDate: "", callTime: "", contactName: "", contactPhone: "", parking: "", accessCode: "", maxHeight: "", note: "" } });
+    applyState({ fields: { name: "", addr: "", custom: "", coords: "", eventName: "", callDate: "", callTime: "", contactName: "", contactPhone: "", parking: "", accessCode: "", maxHeight: "", note: "" } });
     st.arrows.shot = []; $("venueSel").value = ""; syncVenueButtons(); saveNow();
     els.name.focus();
     say("Nouveau lieu : saisissez le nom et l’adresse.");
