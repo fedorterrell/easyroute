@@ -321,6 +321,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         <div class="pois" id="poiOpts">
           <span class="lbl">Points utiles</span>
           <div class="pois" id="poiList"></div>
+          <div class="actions"><button type="button" class="btn sm" id="poiColorsReset" disabled>Couleurs par défaut</button></div>
           <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Pour corriger un repère déjà posé, faites-le glisser. Touchez la pastille de couleur pour la changer. Chaque point a ses propres liens d’itinéraire dans le message.</p>
         </div>
         <div class="toolbar" id="logoOpts">
@@ -606,7 +607,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     { key: "staff", name: "Accès personnel", label: "Accès personnel", emoji: "\u{1F6AA}", fill: "#188038", stroke: "#0d5a26" },
     { key: "catering", name: "Catering", label: "Catering", emoji: "\u{1F37D}\u{FE0F}", fill: "#e8710a", stroke: "#a34f06" },
     { key: "parking", name: "Parking personnel", label: "Parking personnel", emoji: "\u{1F17F}\u{FE0F}", fill: "#8e24aa", stroke: "#5c1570" },
-    { key: "loges", name: "Loges", label: "Loges", emoji: "\u{1F3AD}", fill: "#00897b", stroke: "#005a50" },
+    { key: "loges", name: "Loges", label: "Loges", emoji: "\u{1F3AD}", fill: "#f4b400", stroke: "#a57900" },
   ];
   const poiLabel = (t) => ($("poiLabel-" + t.key) ? $("poiLabel-" + t.key).value.trim() : "") || t.label;
   const placedPois = () => POI_TYPES.filter((t) => st.pois[t.key]);
@@ -1057,7 +1058,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("poiColor-" + t.key).addEventListener("input", (e) => {
       st.poiColors[t.key] = e.target.value;
       try { localStorage.setItem("easyroute.poiColors", JSON.stringify(st.poiColors)); } catch (_) {}
-      syncLinkGrid(); schedule(); autosave();
+      syncPois(); syncLinkGrid(); schedule(); autosave();
     });
     $("poiLabel-" + t.key).addEventListener("input", () => { updateMessage(); schedule(); });
     $("poiPlace-" + t.key).addEventListener("click", () => {
@@ -1077,7 +1078,16 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       syncPois(); updateMessage(); schedule(); say("Point retiré : " + t.name + ".");
     });
   });
+  $("poiColorsReset").addEventListener("click", () => {
+    st.poiColors = {};
+    try { localStorage.removeItem("easyroute.poiColors"); } catch (_) {}
+    POI_TYPES.forEach((t) => { $("poiColor-" + t.key).value = t.fill; });
+    syncPois(); syncLinkGrid(); schedule(); autosave();
+    say("Couleurs par défaut rétablies.");
+  });
   function syncPois() {
+    const custom = POI_TYPES.some((t) => poiColor(t).toLowerCase() !== t.fill.toLowerCase());
+    if ($("poiColorsReset")) $("poiColorsReset").disabled = !custom;
     const mp = $("movePin");
     if (mp) { mp.textContent = st.placing === "main" ? "Touchez le plan…" : "Déplacer le repère"; mp.setAttribute("aria-pressed", String(st.placing === "main")); }
     POI_TYPES.forEach((t) => {
