@@ -203,10 +203,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         <summary><span class="lbl">Infos pratiques</span> <span class="hint">(facultatif)</span></summary>
         <div class="info-body">
           <div class="field">
-            <span class="lbl" id="callLbl">Convocation</span>
+            <span class="lbl" id="callLbl">Get-In</span>
             <div class="pair" role="group" aria-labelledby="callLbl">
-              <input type="date" id="callDate" aria-label="Date de convocation">
-              <input type="time" id="callTime" aria-label="Heure de convocation">
+              <input type="date" id="callDate" aria-label="Date du Get-In">
+              <input type="time" id="callTime" aria-label="Heure du Get-In">
             </div>
           </div>
           <div class="field">
@@ -730,7 +730,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const v = (id) => $(id).value.trim();
     const rows = [];
     const call = callText();
-    if (call) rows.push(["Convocation", call, "\u{1F552}"]);
+    if (call) rows.push(["Get-In", call, "\u{1F552}"]);
     const contact = [v("contactName"), v("contactPhone")].filter(Boolean).join(" — ");
     if (contact) rows.push(["Contact sur place", contact, "\u{1F464}"]);
     if (v("parking")) rows.push(["Parking", v("parking"), "\u{1F17F}\u{FE0F}"]);
