@@ -214,6 +214,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
             </div>
           </div>
           <div class="field">
+            <label for="callDur">Durée dans l’agenda</label>
+            <select id="callDur">
+              <option value="1">1 h</option>
+              <option value="4" selected>4 h</option>
+              <option value="6">6 h</option>
+              <option value="8">8 h</option>
+            </select>
+          </div>
+          <div class="field">
             <span class="lbl" id="contactLbl">Contact sur place</span>
             <div class="pair" role="group" aria-labelledby="contactLbl">
               <input type="text" id="contactName" placeholder="Nom" aria-label="Nom du contact">
@@ -394,6 +403,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         <div class="field">
           <label for="msg">Message</label>
           <textarea id="msg" rows="13" readonly style="font-family:var(--f-mono);font-size:.82rem"></textarea>
+        </div>
+        <div class="toolbar">
+          <label class="check" for="lkCal"><input type="checkbox" id="lkCal" checked> Lien « Ajouter à Google Agenda » dans le message</label>
+          <button type="button" class="btn sm" id="msgIcs" disabled>Événement agenda (.ics)</button>
+          <span class="hint" id="calHint" style="flex:1 1 100%"></span>
         </div>
         <div class="actions">
           <button type="button" class="btn primary share" id="msgShare" hidden>Partager</button>
@@ -1311,7 +1325,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (sel.gps && p) out.push(...(links ? [""] : []), "Coordonnées GPS : " + p.lat.toFixed(6) + ", " + p.lng.toFixed(6));
     return out;
   }
-  function messageText() {
+  function messageText(forCalendar) {
     const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
     const lines = [], event = $("eventName").value.trim();
     if (event) lines.push("\u{1F3AB} " + event, "");
@@ -1319,6 +1333,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
     const info = infoRows();
     if (info.length) lines.push("", ...info.map(([k, v, icon]) => icon + " " + k + " : " + v));
+    const cal = calEvent();
+    if (cal && !forCalendar && $("lkCal").checked) lines.push("", "\u{1F4C5} Ajouter à Google Agenda :", googleCalUrl(cal));
     lines.push("");
     if (anyLink(linkSel.main)) lines.push("Itinéraire :", ...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr, linkSel.main));
     placedPois().forEach((t) => {
@@ -1331,6 +1347,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   }
   function updateMessage() {
     if (!$("msg")) return;
+    syncCal();
     syncLinkGrid();
     const text = messageText();
     $("msg").value = text;
@@ -1344,8 +1361,89 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       ? "Les liens pointent sur le repère du plan : tout le monde arrive au même endroit." + (placedPois().length ? " Chaque point utile a ses propres liens." : "")
       : "Aucune position sur la carte : les liens recherchent l’adresse. Placez le lieu pour un point exact.";
   }
-  ["eventName", "callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((id) =>
-    $(id).addEventListener(/^(callDate|callTime|infoOnSheet)$/.test(id) ? "change" : "input", () => { updateMessage(); schedule(); }));
+  ["eventName", "callDate", "callTime", "callDur", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((id) =>
+    $(id).addEventListener(/^(callDate|callTime|callDur|infoOnSheet)$/.test(id) ? "change" : "input", () => { updateMessage(); schedule(); }));
+
+  // ---------- Calendar (Get-In) ----------
+  // Event from the Get-In date/time: timed event of the chosen duration, or all-day without a time.
+  function calEvent() {
+    const d = $("callDate").value;
+    if (!d) return null;
+    const [y, m, dd] = d.split("-").map(Number);
+    if (!y || !m || !dd) return null;
+    const t = $("callTime").value, name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
+    const event = $("eventName").value.trim();
+    const ev = {
+      title: "Get-In — " + (event || name || addr.split(",")[0] || "Lieu"),
+      location: [name, addr].filter(Boolean).join(", "),
+      allDay: !t,
+      start: new Date(y, m - 1, dd), end: new Date(y, m - 1, dd + 1),
+    };
+    if (t) {
+      const [h, mi] = t.split(":").map(Number);
+      ev.start = new Date(y, m - 1, dd, h, mi || 0);
+      ev.end = new Date(ev.start.getTime() + (+$("callDur").value || 4) * 3600e3);
+    }
+    return ev;
+  }
+  const utcStamp = (dt) => dt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const dayStamp = (dt) => dt.getFullYear() + String(dt.getMonth() + 1).padStart(2, "0") + String(dt.getDate()).padStart(2, "0");
+  function googleCalUrl(ev) {
+    const dates = ev.allDay ? dayStamp(ev.start) + "/" + dayStamp(ev.end) : utcStamp(ev.start) + "/" + utcStamp(ev.end);
+    // Short description (infos only) to keep the link reasonably short; the location opens the map
+    const details = infoRows().filter((r) => r[0] !== "Get-In").map(([k, v]) => k + " : " + v).join("\n");
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(ev.title)
+      + "&dates=" + dates + (ev.location ? "&location=" + encodeURIComponent(ev.location) : "")
+      + (details ? "&details=" + encodeURIComponent(details) : "");
+  }
+  function icsText(ev) {
+    const esc = (v) => String(v).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+    const enc = new TextEncoder();
+    const fold = (line) => { // RFC 5545: lines of at most 75 octets
+      const out = []; let cur = "";
+      for (const ch of line) {
+        if (enc.encode(cur + ch).length > (out.length ? 74 : 75)) { out.push(cur); cur = ch; } else cur += ch;
+      }
+      out.push(cur);
+      return out.join("\r\n ");
+    };
+    const lines = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Easy Route//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      "UID:" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + "@easyroute",
+      "DTSTAMP:" + utcStamp(new Date()),
+      ev.allDay ? "DTSTART;VALUE=DATE:" + dayStamp(ev.start) : "DTSTART:" + utcStamp(ev.start),
+      ev.allDay ? "DTEND;VALUE=DATE:" + dayStamp(ev.end) : "DTEND:" + utcStamp(ev.end),
+      "SUMMARY:" + esc(ev.title),
+    ];
+    if (ev.location) lines.push("LOCATION:" + esc(ev.location));
+    if (st.place) lines.push("GEO:" + st.place.lat.toFixed(6) + ";" + st.place.lng.toFixed(6));
+    lines.push("DESCRIPTION:" + esc(messageText(true)));
+    if (!ev.allDay) lines.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + esc(ev.title), "TRIGGER:-PT1H", "END:VALARM");
+    lines.push("END:VEVENT", "END:VCALENDAR");
+    return lines.map(fold).join("\r\n") + "\r\n";
+  }
+  function syncCal() {
+    const ev = calEvent();
+    $("msgIcs").disabled = !ev;
+    $("calHint").textContent = ev
+      ? (ev.allDay ? "Événement sur la journée entière (pas d’heure de Get-In)." : "Rappel 1 h avant dans le fichier .ics.") + " Le fichier .ics s’ouvre sur iPhone, Mac, Outlook et la plupart des Android ; le lien Google Agenda fonctionne partout."
+      : "Renseignez la date du Get-In (infos pratiques, à gauche) pour créer l’événement d’agenda.";
+  }
+  try { $("lkCal").checked = localStorage.getItem("easyroute.cal") !== "0"; } catch (_) {}
+  $("lkCal").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.cal", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); });
+  $("msgIcs").addEventListener("click", async () => {
+    const ev = calEvent();
+    if (!ev) return;
+    const name = "get-in-" + current.base + ".ics";
+    const blob = new Blob([icsText(ev)], { type: "text/calendar" });
+    const file = new File([blob], name, { type: "text/calendar" });
+    if (standalone && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: ev.title }); say("Événement partagé.", "ok"); return; }
+      catch (e) { if (e && e.name === "AbortError") { say("Partage annulé."); return; } }
+    }
+    deliver(blob, name);
+  });
   $("msgCopy").addEventListener("click", () => {
     const ta = $("msg"), sel = () => { ta.focus(); ta.select(); say("Message sélectionné. Appuyez sur ⌘C pour copier."); };
     try { navigator.clipboard.writeText(ta.value).then(() => say("Message copié. Collez-le dans WhatsApp ou votre e-mail.", "ok"), sel); } catch (_) { sel(); }
@@ -1537,7 +1635,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   // ---------- Session & saved venues ----------
   // Everything describing the job (not the device settings) is captured in a snapshot.
   const JOB_FIELDS = ["name", "addr", "custom", "coords", "useName", "qrmm", "showUrl", "roads", "pin",
-    "eventName", "callDate", "callTime", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"];
+    "eventName", "callDate", "callTime", "callDur", "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"];
   function snapshot() {
     const fields = {};
     JOB_FIELDS.forEach((id) => { const el = $(id); fields[id] = el.type === "checkbox" ? el.checked : el.value; });
