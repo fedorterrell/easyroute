@@ -1,0 +1,12 @@
+{
+  "name": "easyroute",
+  "private": true,
+  "description": "Tests automatiques d'Easy Route (le site lui-même n'a besoin d'aucune installation).",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0",
+    "qrcode-generator": "1.4.4"
+  }
+}
