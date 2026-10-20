@@ -154,7 +154,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <button type="button" class="btn sm" id="venueSave">Enregistrer ce lieu</button>
           <button type="button" class="btn sm" id="venueNew">Nouveau lieu</button>
         </div>
-        <p class="hint">Votre travail en cours est repris automatiquement à la prochaine ouverture. Tout reste sur cet appareil.</p>
+        <div class="actions">
+          <button type="button" class="btn sm" id="venueExport" disabled>Exporter les lieux</button>
+          <label class="btn sm" for="venueImport">Importer des lieux…</label>
+          <input type="file" id="venueImport" accept=".json,application/json" hidden>
+        </div>
+        <p class="hint">Votre travail en cours est repris automatiquement à la prochaine ouverture. Tout reste sur cet appareil ; pour passer vos lieux d’un appareil à l’autre, exportez-les puis importez le fichier.</p>
       </div>
       <div class="field">
         <label for="name">Nom du lieu <span class="opt">(facultatif)</span></label>
@@ -1528,7 +1533,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     sel.value = selectId || "";
     syncVenueButtons();
   }
-  function syncVenueButtons() { $("venueDel").disabled = !$("venueSel").value; }
+  function syncVenueButtons() { $("venueDel").disabled = !$("venueSel").value; $("venueExport").disabled = !venues.length; }
   async function storeVenues() { await fontDbDo("readwrite", (s) => s.put(venues, "venues")); }
   function dataUrlToBlob(url) {
     const [head, b64] = url.split(","), type = (head.match(/data:([^;]+)/) || [])[1] || "image/png";
@@ -1555,6 +1560,40 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       if (await useLogo(blob, true)) { try { await fontDbDo("readwrite", (s) => s.put({ name: v.title, blob }, "logo")); } catch (_) {} }
     }
     say("Lieu chargé : " + v.title + ".", "ok");
+  });
+  // Export / import: one JSON file with every saved venue (logos included), to move them between devices
+  $("venueExport").addEventListener("click", () => {
+    if (!venues.length) return;
+    const file = { app: "easyroute", v: 1, exportedAt: new Date().toISOString(), venues };
+    const blob = new Blob([JSON.stringify(file)], { type: "application/json" });
+    const day = new Date().toISOString().slice(0, 10);
+    deliver(blob, "easyroute-lieux-" + day + ".json");
+  });
+  $("venueImport").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    let list;
+    try {
+      const data = JSON.parse(await f.text());
+      list = data && data.app === "easyroute" && Array.isArray(data.venues) ? data.venues : null;
+    } catch (_) { list = null; }
+    if (!list) { say("Ce fichier n’est pas un export de lieux Easy Route.", "warn"); return; }
+    let added = 0, updated = 0, kept = 0;
+    list.forEach((v) => {
+      if (!v || typeof v.title !== "string" || !v.data) return;
+      const same = venues.find((x) => x.title.toLowerCase() === v.title.toLowerCase());
+      if (!same) { venues.push({ ...v, id: v.id && !venues.some((x) => x.id === v.id) ? v.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }); added++; }
+      else if ((v.savedAt || 0) > (same.savedAt || 0)) { venues = venues.map((x) => (x === same ? { ...v, id: same.id } : x)); updated++; }
+      else kept++;
+    });
+    try { await storeVenues(); } catch (_) { say("Impossible d’enregistrer sur cet appareil (navigation privée ?).", "warn"); return; }
+    fillVenueSelect("");
+    const parts = [];
+    if (added) parts.push(added + " ajouté" + (added > 1 ? "s" : ""));
+    if (updated) parts.push(updated + " mis à jour");
+    if (kept) parts.push(kept + " déjà à jour");
+    say("Import terminé : " + (parts.join(", ") || "aucun lieu dans le fichier") + ".", added || updated ? "ok" : "");
   });
   confirmClick($("venueDel"), "Supprimer ?", async () => {
     const v = venues.find((x) => x.id === $("venueSel").value);

@@ -30,7 +30,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 **Sessions et lieux enregistrés**
 - Le travail en cours (adresse, position, points utiles, flèches, infos pratiques) est repris automatiquement à la prochaine ouverture. *Nouveau lieu* efface tout pour repartir de zéro.
 - *Enregistrer ce lieu* garde une fiche complète, logo compris, que l’on recharge depuis la liste *Lieux enregistrés*. Enregistrer à nouveau un lieu du même nom le met à jour.
-- Ces données restent dans le navigateur de l’appareil : elles ne sont ni envoyées en ligne, ni partagées entre le Mac et l’iPhone.
+- Ces données restent dans le navigateur de l’appareil : elles ne sont ni envoyées en ligne, ni partagées automatiquement entre le Mac et l’iPhone. Pour les transférer, *Exporter les lieux* crée un fichier `.json` (logos compris) à ouvrir ailleurs avec *Importer des lieux…* ; à l’import, un lieu du même nom n’est remplacé que si la version importée est plus récente.
 
 ## Utilisation
 
