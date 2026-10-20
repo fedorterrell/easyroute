@@ -299,6 +299,19 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <div class="pois" id="poiList"></div>
           <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Pour corriger un repère déjà posé, faites-le glisser. Chaque point a ses propres liens d’itinéraire dans le message.</p>
         </div>
+        <div class="toolbar" id="logoOpts">
+          <span class="lbl" id="logoLbl">Logo</span>
+          <label class="btn sm" for="logoFile" id="logoPick">Ajouter un logo…</label>
+          <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>
+          <div class="seg" role="group" aria-labelledby="logoLbl" id="logoSize">
+            <button type="button" data-v="14" aria-pressed="false">Petit</button>
+            <button type="button" data-v="20" aria-pressed="true">Moyen</button>
+            <button type="button" data-v="28" aria-pressed="false">Grand</button>
+          </div>
+          <label class="check" for="logoCard"><input type="checkbox" id="logoCard" checked> Fond blanc</label>
+          <button type="button" class="btn sm" id="logoClear">Retirer</button>
+          <span class="hint" id="logoHint" style="flex:1 1 100%">Logo du lieu, de la salle ou de votre entreprise, placé en haut à droite du plan. PNG transparent ou SVG de préférence.</span>
+        </div>
         <div class="toolbar" id="shotOpts" hidden>
           <label class="btn sm" for="shotFile">Choisir une capture…</label>
           <input type="file" id="shotFile" accept="image/*" hidden>
@@ -775,7 +788,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       st.arrows.shot.forEach((a) => drawArrow(ctx, a.map((p) => toOut(v, p)), s));
       if (st.live && st.bg === "shot") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
     }
-    // QR card, bottom-left, true print size
+    // QR card, top-left, true print size
     const L = current.sheetLabel;
     const m = mmPx(5) * s;
     drawInfoCard(ctx, m, H - m, W - m, s); // practical info: bottom-left
@@ -790,8 +803,30 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       ctx.drawImage(L.canvas, x, y, cw, ch);
       ctx.restore();
     }
+    drawLogo(ctx, W, s);
     ctx.restore();
     return failed;
+  }
+  // Logo, top-right: height in mm from the size setting, width capped so long logos stay reasonable
+  function drawLogo(ctx, W, s) {
+    const img = st.logo;
+    if (!img) return;
+    const iw = img.naturalWidth || 300, ih = img.naturalHeight || 150;
+    let h = mmPx(st.logoMm) * s, w = h * iw / ih;
+    const maxW = mmPx(90) * s;
+    if (w > maxW) { h *= maxW / w; w = maxW; }
+    const m = mmPx(5) * s, pad = st.logoCard ? mmPx(3) * s : 0;
+    const x = W - m - w - pad * 2, y = m;
+    if (st.logoCard) {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = mmPx(2.5) * s; ctx.shadowOffsetY = mmPx(0.6) * s;
+      roundRect(ctx, x, y, w + pad * 2, h + pad * 2, mmPx(3) * s); ctx.fillStyle = "#fff"; ctx.fill();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, x + pad, y + pad, w, h);
+    ctx.restore();
   }
 
   // Preview canvas
@@ -1054,6 +1089,28 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   els.name.addEventListener("input", () => { if (!els.addr.value.trim()) autoLookup(); });
   els.addr.addEventListener("blur", () => { if (els.addr.value.trim() + "|" + els.name.value.trim() !== lastLookup) { clearTimeout(lookupTimer); lookup(true); } });
 
+  // Logo
+  st.logo = null; st.logoMm = 20; st.logoCard = true;
+  function syncLogo() {
+    $("logoPick").textContent = st.logo ? "Changer de logo…" : "Ajouter un logo…";
+    $("logoClear").disabled = !st.logo;
+    $("logoSize").querySelectorAll("button").forEach((b) => { b.disabled = !st.logo; });
+    $("logoCard").disabled = !st.logo;
+  }
+  $("logoFile").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => { st.logo = img; syncLogo(); schedule(); say("Logo ajouté en haut à droite du plan.", "ok"); };
+    img.onerror = () => say("Impossible d’ouvrir ce logo. Essayez un PNG ou un JPG.", "warn");
+    img.src = URL.createObjectURL(file);
+  });
+  segment("logoSize", (v) => { st.logoMm = +v; schedule(); });
+  $("logoCard").addEventListener("change", (e) => { st.logoCard = e.target.checked; schedule(); });
+  $("logoClear").addEventListener("click", () => { st.logo = null; syncLogo(); schedule(); say("Logo retiré."); });
+  syncLogo();
+
   // Screenshot background
   function useShot(file) {
     if (!file || !/^image\//.test(file.type)) return;
@@ -1226,7 +1283,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (!$("msgShare").hidden) $("msgCopy").classList.remove("primary");
   }
   function shareSig() {
-    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows()]);
+    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, !!st.logo && st.logo.src, st.logoMm, st.logoCard, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows()]);
   }
   let prepared = null; // { sig, file } — iOS only opens the share sheet right after a tap, so a slow render is done first
   async function sheetFile() {
