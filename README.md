@@ -14,12 +14,13 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Points utiles en couleur : accès technique / déchargement, accès personnel, catering, parking personnel, loges. Chacun a un libellé modifiable.
 - Flèches dessinées à main levée pour montrer le chemin.
 - Carte QR en haut à gauche, à sa taille d’impression réelle, et carte des infos pratiques en bas à gauche.
-- Logo du lieu, de la salle ou de votre entreprise en haut à droite (PNG, JPG, SVG ou WebP), en trois tailles, sur fond blanc ou non.
+- Logo du lieu, de la salle ou de votre entreprise en haut à droite (PNG, JPG, SVG ou WebP), en trois tailles, sur fond blanc ou non. Le dernier logo utilisé est mémorisé sur l’appareil.
 - Fond au choix : satellite, ou votre propre capture d’écran (Google Maps, plan du lieu…).
 
 **Étiquette QR seule** (PNG, JPG ou SVG cliquable), à insérer par exemple dans Trimble LayOut.
 - Le QR ouvre le lieu dans **Google Maps** ou lance le guidage dans **Waze**.
 - Taille du QR de 20 à 50 mm, résolution 300 ou 600 dpi.
+- Logo ajouté à l’étiquette si on coche la case (au-dessus du texte, ou au-dessus du QR en disposition empilée).
 
 **Message équipe**
 - Nom, adresse et infos pratiques : convocation, contact sur place, parking, code d’accès, hauteur max, consignes d’accès.

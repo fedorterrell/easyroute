@@ -301,7 +301,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         </div>
         <div class="toolbar" id="logoOpts">
           <span class="lbl" id="logoLbl">Logo</span>
-          <label class="btn sm" for="logoFile" id="logoPick">Ajouter un logo…</label>
+          <label class="btn sm logoPick" for="logoFile">Ajouter un logo…</label>
           <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>
           <div class="seg" role="group" aria-labelledby="logoLbl" id="logoSize">
             <button type="button" data-v="14" aria-pressed="false">Petit</button>
@@ -310,7 +310,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           </div>
           <label class="check" for="logoCard"><input type="checkbox" id="logoCard" checked> Fond blanc</label>
           <button type="button" class="btn sm" id="logoClear">Retirer</button>
-          <span class="hint" id="logoHint" style="flex:1 1 100%">Logo du lieu, de la salle ou de votre entreprise, placé en haut à droite du plan. PNG transparent ou SVG de préférence.</span>
+          <span class="hint" id="logoHint" style="flex:1 1 100%">Logo du lieu, de la salle ou de votre entreprise, placé en haut à droite du plan et mémorisé sur cet appareil. PNG transparent ou SVG de préférence.</span>
         </div>
         <div class="toolbar" id="shotOpts" hidden>
           <label class="btn sm" for="shotFile">Choisir une capture…</label>
@@ -339,6 +339,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
               <option value="600">600 dpi</option>
             </select>
           </div>
+        </div>
+        <div class="toolbar">
+          <label class="check" for="logoOnLabel"><input type="checkbox" id="logoOnLabel"> Ajouter le logo à l’étiquette</label>
+          <label class="btn sm logoPick" for="logoFile">Ajouter un logo…</label>
+          <span class="hint" id="logoLabelHint"></span>
         </div>
         <div class="stage"><img id="out" alt="Aperçu de l’étiquette QR"></div>
         <div class="meta" id="meta"></div>
@@ -430,7 +435,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return out;
   }
 
-  function buildLabel(dpi, url) {
+  function buildLabel(dpi, url, withLogo) {
     const mm = +els.qrmm.value;
     const px = (v) => Math.round(v / 25.4 * dpi);
     const qrPx = px(mm);
@@ -457,18 +462,31 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       b.lines.forEach((l) => { textW = Math.max(textW, m.measureText(l).width); });
     });
     textW = Math.ceil(textW);
+    // Optional logo: above the text (side by side) or above the QR (stacked)
+    const logo = withLogo && st.logo ? st.logo : null;
+    let lgW = 0, lgH = 0;
+    const lgGap = Math.round(qrPx * 0.09);
+    if (logo) {
+      const iw = logo.naturalWidth || 300, ih = logo.naturalHeight || 150;
+      lgH = Math.round(qrPx * 0.28); lgW = Math.round(lgH * iw / ih);
+      const maxW = layout === "side" ? s.textW : Math.round(qrPx * 1.4);
+      if (lgW > maxW) { lgH = Math.round(lgH * maxW / lgW); lgW = maxW; }
+      if (layout === "side") { textH += lgH + (blocks.length ? lgGap : 0); textW = Math.max(textW, lgW); }
+    }
+    const hasText = blocks.length || (logo && layout === "side");
 
     let W, H, qx, qy, tx, ty;
     if (layout === "side") {
-      W = s.pad * 2 + s.qrPx + (blocks.length ? s.gap + textW : 0);
+      W = s.pad * 2 + s.qrPx + (hasText ? s.gap + textW : 0);
       H = s.pad * 2 + Math.max(s.qrPx, textH);
       qx = s.pad; qy = s.pad + (H - s.pad * 2 - s.qrPx) / 2;
       tx = s.pad + s.qrPx + s.gap; ty = s.pad + (H - s.pad * 2 - textH) / 2;
     } else {
-      W = s.pad * 2 + Math.max(s.qrPx, textW);
-      H = s.pad * 2 + s.qrPx + (blocks.length ? s.gap * 0.6 + textH : 0);
-      qx = (W - s.qrPx) / 2; qy = s.pad;
-      tx = null; ty = s.pad + s.qrPx + s.gap * 0.6;
+      const top = logo ? lgH + lgGap : 0;
+      W = s.pad * 2 + Math.max(s.qrPx, textW, lgW);
+      H = s.pad * 2 + top + s.qrPx + (blocks.length ? s.gap * 0.6 + textH : 0);
+      qx = (W - s.qrPx) / 2; qy = s.pad + top;
+      tx = null; ty = qy + s.qrPx + s.gap * 0.6;
     }
     W = Math.ceil(W); H = Math.ceil(H);
 
@@ -485,7 +503,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       }
     }
     ctx.textBaseline = "top";
-    let y = ty;
+    let y = ty, lgX = 0, lgY = 0;
+    if (logo) {
+      if (layout === "side") { lgX = tx; lgY = ty; y = ty + lgH + (blocks.length ? lgGap : 0); }
+      else { lgX = (W - lgW) / 2; lgY = s.pad; }
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(logo, lgX, lgY, lgW, lgH);
+    }
     const svgText = [];
     blocks.forEach((b, i) => {
       if (i) y += bgap;
@@ -508,7 +532,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const anchor = tx === null ? ' text-anchor="middle"' : "";
     const texts = svgText.map((t) => `<text x="${t.x.toFixed(1)}" y="${t.y.toFixed(1)}" font-family="${t.b.mono ? "JetBrains Mono, Menlo, monospace" : "Barlow, Helvetica, Arial, sans-serif"}" font-size="${t.b.size}" fill="${t.b.color}"${anchor}>${esc(t.l)}</text>`).join("");
     const mmW = (W / dpi * 25.4).toFixed(1), mmH = (H / dpi * 25.4).toFixed(1);
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${mmW}mm" height="${mmH}mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><a href="${esc(url)}" xlink:href="${esc(url)}" target="_blank"><path d="${path}" fill="#000"/>${texts}</a></svg>`;
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${mmW}mm" height="${mmH}mm" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/>${logo && st.logoData ? `<image x="${lgX.toFixed(1)}" y="${lgY.toFixed(1)}" width="${lgW}" height="${lgH}" href="${st.logoData}" xlink:href="${st.logoData}"/>` : ""}<a href="${esc(url)}" xlink:href="${esc(url)}" target="_blank"><path d="${path}" fill="#000"/>${texts}</a></svg>`;
     return { canvas: c, svg, W, H, n, mmW, mmH, dpi };
   }
 
@@ -519,8 +543,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     els.open.href = /^https?:\/\//i.test(url) ? url : "#";
 
     const dpi = +els.dpi.value;
-    current.label = buildLabel(dpi, url);
-    current.sheetLabel = dpi === SHEET.dpi ? current.label : buildLabel(SHEET.dpi, url);
+    const onLabel = !!(st.logoOnLabel && st.logo);
+    current.label = buildLabel(dpi, url, onLabel);
+    current.sheetLabel = dpi === SHEET.dpi && !onLabel ? current.label : buildLabel(SHEET.dpi, url, false);
     const L = current.label;
     els.out.src = L.canvas.toDataURL("image/png");
     els.out.style.width = Math.round(L.W / (dpi / 96)) + "px";
@@ -1090,25 +1115,43 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   els.addr.addEventListener("blur", () => { if (els.addr.value.trim() + "|" + els.name.value.trim() !== lastLookup) { clearTimeout(lookupTimer); lookup(true); } });
 
   // Logo
-  st.logo = null; st.logoMm = 20; st.logoCard = true;
+  // The last logo used is remembered on this device (IndexedDB), with its settings (localStorage).
+  st.logo = null; st.logoData = ""; st.logoMm = 20; st.logoCard = true; st.logoOnLabel = false;
+  try { Object.assign(st, JSON.parse(localStorage.getItem("easyroute.logo") || "{}")); } catch (_) {}
+  function saveLogoPrefs() { try { localStorage.setItem("easyroute.logo", JSON.stringify({ logoMm: st.logoMm, logoCard: st.logoCard, logoOnLabel: st.logoOnLabel })); } catch (_) {} }
   function syncLogo() {
-    $("logoPick").textContent = st.logo ? "Changer de logo…" : "Ajouter un logo…";
+    document.querySelectorAll(".logoPick").forEach((el) => { el.textContent = st.logo ? "Changer de logo…" : "Ajouter un logo…"; });
     $("logoClear").disabled = !st.logo;
-    $("logoSize").querySelectorAll("button").forEach((b) => { b.disabled = !st.logo; });
-    $("logoCard").disabled = !st.logo;
+    $("logoSize").querySelectorAll("button").forEach((b) => { b.disabled = !st.logo; b.setAttribute("aria-pressed", String(+b.dataset.v === st.logoMm)); });
+    $("logoCard").disabled = !st.logo; $("logoCard").checked = st.logoCard;
+    $("logoOnLabel").disabled = !st.logo; $("logoOnLabel").checked = st.logoOnLabel;
+    $("logoLabelHint").textContent = st.logo ? "" : "Ajoutez d’abord un logo.";
   }
-  $("logoFile").addEventListener("change", (e) => {
+  function useLogo(blob, quiet) {
+    return new Promise((res) => {
+      const img = new Image(), reader = new FileReader();
+      reader.onload = () => {
+        img.onload = () => { st.logo = img; st.logoData = reader.result; syncLogo(); render(); res(true); if (!quiet) say("Logo ajouté en haut à droite du plan.", "ok"); };
+        img.onerror = () => { res(false); if (!quiet) say("Impossible d’ouvrir ce logo. Essayez un PNG ou un JPG.", "warn"); };
+        img.src = reader.result;
+      };
+      reader.onerror = () => res(false);
+      reader.readAsDataURL(blob);
+    });
+  }
+  $("logoFile").addEventListener("change", async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = "";
     if (!file) return;
-    const img = new Image();
-    img.onload = () => { st.logo = img; syncLogo(); schedule(); say("Logo ajouté en haut à droite du plan.", "ok"); };
-    img.onerror = () => say("Impossible d’ouvrir ce logo. Essayez un PNG ou un JPG.", "warn");
-    img.src = URL.createObjectURL(file);
+    if (await useLogo(file)) { try { await fontDbDo("readwrite", (s) => s.put({ name: file.name, blob: file }, "logo")); } catch (_) {} }
   });
-  segment("logoSize", (v) => { st.logoMm = +v; schedule(); });
-  $("logoCard").addEventListener("change", (e) => { st.logoCard = e.target.checked; schedule(); });
-  $("logoClear").addEventListener("click", () => { st.logo = null; syncLogo(); schedule(); say("Logo retiré."); });
+  segment("logoSize", (v) => { st.logoMm = +v; saveLogoPrefs(); schedule(); });
+  $("logoCard").addEventListener("change", (e) => { st.logoCard = e.target.checked; saveLogoPrefs(); schedule(); });
+  $("logoOnLabel").addEventListener("change", (e) => { st.logoOnLabel = e.target.checked; saveLogoPrefs(); render(); });
+  $("logoClear").addEventListener("click", async () => {
+    st.logo = null; st.logoData = ""; syncLogo(); render(); say("Logo retiré.");
+    try { await fontDbDo("readwrite", (s) => s.delete("logo")); } catch (_) {}
+  });
   syncLogo();
 
   // Screenshot background
@@ -1283,7 +1326,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     if (!$("msgShare").hidden) $("msgCopy").classList.remove("primary");
   }
   function shareSig() {
-    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, !!st.logo && st.logo.src, st.logoMm, st.logoCard, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows()]);
+    return JSON.stringify([current.url, els.name.value, els.addr.value, els.qrmm.value, layout, els.showUrl.checked, st.place, st.center, st.zoom, st.roads, st.pin, st.bg, st.arrows, !!st.shot && st.shot.src, st.logoData.length, st.logoMm, st.logoCard, st.pois, POI_TYPES.map(poiLabel), $("infoOnSheet").checked, infoRows()]);
   }
   let prepared = null; // { sig, file } — iOS only opens the share sheet right after a tap, so a slow render is done first
   async function sheetFile() {
@@ -1355,7 +1398,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     el.style.color = loadedFont ? "var(--ok)" : "";
     $("fontReset").hidden = !loadedFont;
   }
-  const FONT_DB = { name: "easyroute", store: "fonts", key: "label" };
+  const FONT_DB = { name: "easyroute", store: "fonts", key: "label" }; // the same store also keeps the logo under the key "logo"
   function fontDb() {
     return new Promise((res, rej) => {
       try {
@@ -1408,6 +1451,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   $("sheetNote").textContent = standalone ? "" : "Le satellite et la recherche d’adresse demandent la version hors ligne";
   syncTool(); syncPois();
   render(); fontState();
+  fontDbDo("readonly", (s) => s.get("logo")).then((saved) => { if (saved && saved.blob) useLogo(saved.blob, true); }).catch(() => {});
   if (document.fonts && document.fonts.load) {
     Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"')]).then(() => { render(); fontState(); }, () => {});
   }
