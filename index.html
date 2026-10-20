@@ -89,6 +89,10 @@ details.info > .info-body { display: grid; gap: 12px; margin-top: 12px; }
 .venues { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
 .venues select { flex: 1 1 auto; }
 .btn.confirm { background: var(--warn); border-color: var(--warn); color: #fff; }
+.poicolor { -webkit-appearance: none; appearance: none; flex: none; margin: 0 0 0 3px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--line); }
+.poicolor::-webkit-color-swatch-wrapper { padding: 0; }
+.poicolor::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.poicolor::-moz-color-swatch { border: 0; border-radius: 50%; }
 .poidot { display: inline-block; flex: none; margin-left: 3px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--line); }
 .pois { display: grid; gap: 8px; }
 .poirow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -317,7 +321,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         <div class="pois" id="poiOpts">
           <span class="lbl">Points utiles</span>
           <div class="pois" id="poiList"></div>
-          <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Pour corriger un repère déjà posé, faites-le glisser. Chaque point a ses propres liens d’itinéraire dans le message.</p>
+          <p class="hint" id="poiHint">Touchez « Placer », puis l’endroit sur le plan. Pour corriger un repère déjà posé, faites-le glisser. Touchez la pastille de couleur pour la changer. Chaque point a ses propres liens d’itinéraire dans le message.</p>
         </div>
         <div class="toolbar" id="logoOpts">
           <span class="lbl" id="logoLbl">Logo</span>
@@ -606,6 +610,14 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   ];
   const poiLabel = (t) => ($("poiLabel-" + t.key) ? $("poiLabel-" + t.key).value.trim() : "") || t.label;
   const placedPois = () => POI_TYPES.filter((t) => st.pois[t.key]);
+  // Point colours: chosen by the user (remembered on the device and in each saved venue), else the default
+  st.poiColors = {};
+  try { st.poiColors = JSON.parse(localStorage.getItem("easyroute.poiColors") || "{}") || {}; } catch (_) {}
+  const poiColor = (t) => (/^#[0-9a-f]{6}$/i.test(st.poiColors[t.key] || "") ? st.poiColors[t.key] : t.fill);
+  function darken(hex, k) {
+    const n = parseInt(hex.slice(1), 16), f = (v) => Math.round(v * (1 - k)).toString(16).padStart(2, "0");
+    return "#" + f(n >> 16) + f((n >> 8) & 255) + f(n & 255);
+  }
 
   function project(lat, lng) {
     const s = Math.sin(lat * Math.PI / 180);
@@ -813,7 +825,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
         if (st.live && st.bg === "sat") drawArrow(ctx, st.live.map((p) => toOut(v, p)), s);
         placedPois().forEach((t) => {
           const pt = st.pois[t.key], dp = toOut(v, project(pt.lat, pt.lng));
-          pinLabel(ctx, dp, drawPin(ctx, dp[0], dp[1], s, { fill: t.fill, stroke: t.stroke, dot: "#ffffff" }), poiLabel(t), s);
+          pinLabel(ctx, dp, drawPin(ctx, dp[0], dp[1], s, { fill: poiColor(t), stroke: darken(poiColor(t), 0.32), dot: "#ffffff" }), poiLabel(t), s);
         });
         if (st.pin && st.place) {
           const pp = toOut(v, project(st.place.lat, st.place.lng));
@@ -1036,12 +1048,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   POI_TYPES.forEach((t) => {
     const row = document.createElement("div");
     row.className = "poirow";
-    row.innerHTML = `<span class="poidot" style="background:${t.fill}"></span>`
+    row.innerHTML = `<input type="color" class="poicolor" id="poiColor-${t.key}" value="${poiColor(t)}" title="Changer la couleur" aria-label="Couleur du point ${t.name}">`
       + `<input type="text" id="poiLabel-${t.key}" aria-label="Libellé du point ${t.name}">`
       + `<button type="button" class="btn sm" id="poiPlace-${t.key}" aria-pressed="false"></button>`
       + `<button type="button" class="btn sm" id="poiClear-${t.key}">Retirer</button>`;
     $("poiList").appendChild(row);
     $("poiLabel-" + t.key).value = t.label;
+    $("poiColor-" + t.key).addEventListener("input", (e) => {
+      st.poiColors[t.key] = e.target.value;
+      try { localStorage.setItem("easyroute.poiColors", JSON.stringify(st.poiColors)); } catch (_) {}
+      syncLinkGrid(); schedule(); autosave();
+    });
     $("poiLabel-" + t.key).addEventListener("input", () => { updateMessage(); schedule(); });
     $("poiPlace-" + t.key).addEventListener("click", () => {
       if (st.placing === t.key) { st.placing = null; setTool("pan"); }
@@ -1216,8 +1233,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   (function buildLinkGrid() {
     const g = $("linkGrid");
     g.insertAdjacentHTML("beforeend", "<span></span>" + LINK_COLS.map((c) => `<span class="lh" title="${c[2]}">${c[1]}</span>`).join(""));
-    [{ key: "main", name: "Lieu", dot: "#ea4335" }, ...POI_TYPES.map((t) => ({ key: t.key, name: t.name, dot: t.fill }))].forEach((r) => {
-      const cells = [`<span class="ln" data-row="${r.key}"><span class="poidot" style="background:${r.dot}"></span><span data-name="${r.key}">${r.name}</span></span>`]
+    [{ key: "main", name: "Lieu", dot: "#ea4335" }, ...POI_TYPES.map((t) => ({ key: t.key, name: t.name, dot: poiColor(t) }))].forEach((r) => {
+      const cells = [`<span class="ln" data-row="${r.key}"><span class="poidot" data-dot="${r.key}" style="background:${r.dot}"></span><span data-name="${r.key}">${r.name}</span></span>`]
         .concat(LINK_COLS.map((c) => `<input type="checkbox" id="lk-${r.key}-${c[0]}" data-row="${r.key}" aria-label="${c[2]} pour ${r.name}"${linkSel[r.key][c[0]] ? " checked" : ""}>`));
       g.insertAdjacentHTML("beforeend", cells.join(""));
       LINK_COLS.forEach((c) => $(`lk-${r.key}-${c[0]}`).addEventListener("change", (e) => {
@@ -1232,6 +1249,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       const placed = !!st.pois[t.key];
       $("linkGrid").querySelectorAll(`[data-row="${t.key}"]`).forEach((el) => { el.hidden = !placed; });
       const n = $("linkGrid").querySelector(`[data-name="${t.key}"]`); if (n) n.textContent = poiLabel(t);
+      const d = $("linkGrid").querySelector(`[data-dot="${t.key}"]`); if (d) d.style.background = poiColor(t);
     });
   }
   const anyLink = (sel) => sel.g || sel.w || sel.a || sel.gps;
@@ -1477,6 +1495,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       v: 1, fields, app, layout,
       place: st.place, center: st.center, zoom: st.zoom, pois: st.pois, arrows: st.arrows.sat,
       poiLabels: Object.fromEntries(POI_TYPES.map((t) => [t.key, $("poiLabel-" + t.key).value])),
+      poiColors: { ...st.poiColors },
     };
   }
   function applyState(d) {
@@ -1486,6 +1505,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     st.place = d.place || null; st.center = d.center || (d.place ? { ...d.place } : null); st.zoom = d.zoom || 18;
     st.pois = d.pois || {}; st.arrows.sat = d.arrows || []; st.placing = null;
     POI_TYPES.forEach((t) => { $("poiLabel-" + t.key).value = (d.poiLabels && d.poiLabels[t.key]) || t.label; });
+    if (d.poiColors) st.poiColors = { ...d.poiColors };
+    POI_TYPES.forEach((t) => { $("poiColor-" + t.key).value = poiColor(t); });
     const clickSeg = (id, v) => { const b = v && $(id).querySelector(`[data-v="${v}"]`); if (b) b.click(); };
     clickSeg("appSeg", d.app); clickSeg("layout", d.layout);
     lastLookup = els.addr.value.trim() + "|" + els.name.value.trim(); // don't re-geocode a restored place
