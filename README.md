@@ -28,6 +28,11 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - **Agenda** : à partir de la date et de l’heure du Get-In (durée au choix : 1, 4, 6 ou 8 h ; journée entière sans heure), un lien « Ajouter à Google Agenda » dans le message, qui marche sur tous les téléphones, et un fichier `.ics` (iPhone, Mac, Outlook, la plupart des Android) avec rappel 1 h avant.
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
+**Fiche partagée**
+- Le message équipe contient un **lien de fiche** (case à cocher). L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans pour le lieu et chaque point utile, ajout à l’agenda, et le plan avec téléchargement en JPG.
+- Toute la fiche est contenue dans le lien (compressée) : rien n’est stocké sur un serveur, et le lien reste valable tant que le site existe. Le logo n’y figure pas.
+- *Modifier dans Easy Route* reprend la fiche dans l’éditeur, à la place du travail en cours.
+
 **Sessions et lieux enregistrés**
 - Le travail en cours (adresse, position, points utiles, flèches, infos pratiques) est repris automatiquement à la prochaine ouverture. *Nouveau lieu* efface tout pour repartir de zéro.
 - *Enregistrer ce lieu* garde une fiche complète, logo compris, que l’on recharge depuis la liste *Lieux enregistrés*. Enregistrer à nouveau un lieu du même nom le met à jour.

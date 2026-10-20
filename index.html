@@ -137,6 +137,21 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 .status { font-size: .86rem; min-height: 1.2em; margin: 0; }
 .status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
 .example { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--warn); }
+.fiche { display: grid; gap: 16px; max-width: 900px; width: 100%; margin: 0 auto; }
+.fiche h1 { font-size: 1.7rem; }
+.fiche .sub { margin: 2px 0 0; color: var(--muted); }
+.fiche .place { font-size: 1.08rem; font-weight: 600; margin: 0; }
+.finfo { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 0; }
+.finfo dt { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 2px; }
+.finfo dd { margin: 0; overflow-wrap: anywhere; }
+.finfo a { color: var(--accent); font-weight: 600; }
+@media (max-width: 480px) { .fiche .routebtns .btn { padding-inline: 6px; font-size: .86rem; } }
+.froute { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.froute:first-of-type { border-top: 0; padding-top: 0; }
+.froute .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.froute .gps { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fiche .btn { justify-content: center; }
+.fiche .routebtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .swatch { display: inline-block; width: 14px; height: 3px; background: var(--arrow); border-radius: 2px; }
 </style>
 
@@ -405,6 +420,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <textarea id="msg" rows="13" readonly style="font-family:var(--f-mono);font-size:.82rem"></textarea>
         </div>
         <div class="toolbar">
+          <label class="check" for="lkFiche"><input type="checkbox" id="lkFiche" checked> Lien de la fiche complète dans le message</label>
+          <button type="button" class="btn sm" id="ficheCopy">Copier le lien de la fiche</button>
+          <a class="btn sm" id="ficheOpen" href="#" target="_blank" rel="noopener">Voir la fiche</a>
+        </div>
+        <div class="toolbar">
           <label class="check" for="lkCal"><input type="checkbox" id="lkCal" checked> Lien « Ajouter à Google Agenda » dans le message</label>
           <button type="button" class="btn sm" id="msgIcs" disabled>Événement agenda (.ics)</button>
           <span class="hint" id="calHint" style="flex:1 1 100%"></span>
@@ -422,6 +442,35 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       <p class="hint" id="footHint">Imagerie satellite : Esri World Imagery. Recherche d’adresse : OpenStreetMap Nominatim. La carte QR est placée en haut à gauche, à sa taille d’impression réelle, et les infos pratiques en bas à gauche.</p>
     </section>
   </div>
+
+  <!-- Fiche partagée : vue en lecture seule ouverte depuis un lien …/#fiche=… -->
+  <section class="fiche" id="ficheView" hidden aria-label="Fiche d’accès">
+    <div>
+      <span class="lbl">Fiche d’accès · Easy Route !</span>
+      <h1 id="fTitle"></h1>
+      <p class="place" id="fPlace"></p>
+      <p class="sub" id="fAddr"></p>
+    </div>
+    <div class="panel" id="fInfosPanel">
+      <span class="lbl">Infos pratiques</span>
+      <dl class="finfo" id="fInfos"></dl>
+      <div class="actions" id="fCal"></div>
+    </div>
+    <div class="panel">
+      <span class="lbl">Itinéraires</span>
+      <div id="fRoutes"></div>
+    </div>
+    <div class="panel">
+      <span class="lbl">Plan</span>
+      <div id="fSheetSlot"></div>
+      <div class="actions"><button type="button" class="btn" id="fJpg">Télécharger le plan (JPG)</button></div>
+    </div>
+    <p class="status" id="fStatus" role="status"></p>
+    <div class="actions">
+      <button type="button" class="btn" id="fEdit">Modifier dans Easy Route</button>
+      <span class="hint">Pour préparer votre propre version de cette fiche.</span>
+    </div>
+  </section>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -438,7 +487,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   let app = "google";
   const current = { url: "", label: null, sheetLabel: null, base: "address" };
 
-  function say(msg, cls) { els.status.textContent = msg; els.status.className = "status " + (cls || ""); }
+  function say(msg, cls) {
+    [els.status, document.getElementById("fStatus")].forEach((el) => { if (el) { el.textContent = msg; el.className = "status " + (cls || ""); } });
+  }
 
   // ---------- Link + label ----------
   function mapsUrl() {
@@ -926,7 +977,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("zoomVal").textContent = st.zoom;
     $("undo").disabled = !st.arrows[st.bg].length;
     $("clear").disabled = !st.arrows[st.bg].length;
-    autosave();
+    autosave(); refreshFiche();
   }
   if (window.ResizeObserver) new ResizeObserver(schedule).observe(els.sheet); else window.addEventListener("resize", schedule);
 
@@ -1329,8 +1380,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
     const lines = [], event = $("eventName").value.trim();
     if (event) lines.push("\u{1F3AB} " + event, "");
+    const ficheLine = !forCalendar && $("lkFiche").checked && ficheUrl ? ["", "\u{1F517} Fiche complète (plan, accès, itinéraires) :", ficheUrl] : [];
     if (name) lines.push("\u{1F4CD} " + name);
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
+    lines.push(...ficheLine);
     const info = infoRows();
     if (info.length) lines.push("", ...info.map(([k, v, icon]) => icon + " " + k + " : " + v));
     const cal = calEvent();
@@ -1347,6 +1400,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   }
   function updateMessage() {
     if (!$("msg")) return;
+    refreshFiche();
     syncCal();
     syncLinkGrid();
     const text = messageText();
@@ -1432,7 +1486,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   }
   try { $("lkCal").checked = localStorage.getItem("easyroute.cal") !== "0"; } catch (_) {}
   $("lkCal").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.cal", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); });
-  $("msgIcs").addEventListener("click", async () => {
+  $("msgIcs").addEventListener("click", () => icsDownload());
+  async function icsDownload() {
     const ev = calEvent();
     if (!ev) return;
     const name = "get-in-" + current.base + ".ics";
@@ -1443,7 +1498,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       catch (e) { if (e && e.name === "AbortError") { say("Partage annulé."); return; } }
     }
     deliver(blob, name);
-  });
+  }
   $("msgCopy").addEventListener("click", () => {
     const ta = $("msg"), sel = () => { ta.focus(); ta.select(); say("Message sélectionné. Appuyez sur ⌘C pour copier."); };
     try { navigator.clipboard.writeText(ta.value).then(() => say("Message copié. Collez-le dans WhatsApp ou votre e-mail.", "ok"), sel); } catch (_) { sel(); }
@@ -1651,6 +1706,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     JOB_FIELDS.forEach((id) => { if (!(id in f)) return; const el = $(id); if (el.type === "checkbox") el.checked = !!f[id]; else el.value = f[id]; });
     st.roads = $("roads").checked; st.pin = $("pin").checked;
     st.place = d.place || null; st.center = d.center || (d.place ? { ...d.place } : null); st.zoom = d.zoom || 18;
+    if (st.place) els.coords.value = st.place.lat.toFixed(7) + ", " + st.place.lng.toFixed(7);
     st.pois = d.pois || {}; st.arrows.sat = d.arrows || []; st.placing = null;
     POI_TYPES.forEach((t) => { $("poiLabel-" + t.key).value = (d.poiLabels && d.poiLabels[t.key]) || t.label; });
     if (d.poiColors) st.poiColors = { ...d.poiColors };
@@ -1772,19 +1828,195 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     fillVenueSelect(""); say("Lieu supprimé : " + v.title + ".");
   });
 
+  // ---------- Shared fiche: the whole job packed into the link (…/#fiche=…), no server ----------
+  const SITE_URL = "https://fedorterrell.github.io/easyroute/";
+  let ficheUrl = "", ficheTimer = 0, ficheMode = false;
+  const b64url = (bytes) => {
+    let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const unb64url = (str) => {
+    const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+    const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  };
+  const r7 = (v) => Math.round(v * 1e7) / 1e7;
+  const rPt = (p) => (p ? { lat: r7(p.lat), lng: r7(p.lng) } : null);
+  function ficheData() {
+    const snap = snapshot(), f = {};
+    ["name", "addr", "custom", "useName", "qrmm", "showUrl", "eventName", "callDate", "callTime", "callDur",
+      "contactName", "contactPhone", "parking", "accessCode", "maxHeight", "note", "infoOnSheet"].forEach((k) => {
+      const v = snap.fields[k]; if (v !== "" && v !== undefined) f[k] = v;
+    });
+    const labels = {}; POI_TYPES.forEach((t) => { const l = snap.poiLabels[t.key]; if (l && l !== t.label && st.pois[t.key]) labels[t.key] = l; });
+    const colors = {}; POI_TYPES.forEach((t) => { if (st.pois[t.key] && poiColor(t) !== t.fill) colors[t.key] = poiColor(t); });
+    const pois = {}; POI_TYPES.forEach((t) => { if (st.pois[t.key]) pois[t.key] = rPt(st.pois[t.key]); });
+    return { v: 1, fields: f, app, layout, place: rPt(st.place), center: rPt(st.center), zoom: st.zoom, pois,
+      poiLabels: labels, poiColors: colors, arrows: st.arrows.sat.map((a) => a.map(([x, y]) => [r7(x), r7(y)])) };
+  }
+  async function packFiche(obj) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    if (window.CompressionStream) {
+      try {
+        const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+        return "1" + b64url(new Uint8Array(await new Response(stream).arrayBuffer()));
+      } catch (_) {}
+    }
+    return "0" + b64url(bytes);
+  }
+  async function unpackFiche(str) {
+    const bytes = unb64url(str.slice(1));
+    if (str[0] === "1") {
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return JSON.parse(await new Response(stream).text());
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+  const siteBase = () => (/^https?:$/.test(location.protocol) && !/claude/.test(location.hostname) ? location.origin + location.pathname : SITE_URL);
+  function refreshFiche() {
+    if (ficheMode) return;
+    clearTimeout(ficheTimer);
+    ficheTimer = setTimeout(async () => {
+      const url = st.place || els.addr.value.trim() ? siteBase() + "#fiche=" + await packFiche(ficheData()) : "";
+      $("ficheOpen").href = url || "#";
+      $("ficheCopy").disabled = !url;
+      if (url !== ficheUrl) { ficheUrl = url; updateMessage(); }
+    }, 300);
+  }
+  $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); });
+  try { $("lkFiche").checked = localStorage.getItem("easyroute.ficheLink") !== "0"; } catch (_) {}
+  $("ficheCopy").addEventListener("click", () => {
+    if (!ficheUrl) return;
+    try { navigator.clipboard.writeText(ficheUrl).then(() => say("Lien de la fiche copié.", "ok"), () => say("Copie impossible ici : utilisez « Voir la fiche » puis copiez l’adresse.", "warn")); }
+    catch (_) { say("Copie impossible ici : utilisez « Voir la fiche » puis copiez l’adresse.", "warn"); }
+  });
+
+  // Read-only view for the team
+  function routeUrls(p, title, search) {
+    const ll = p ? p.lat.toFixed(6) + "," + p.lng.toFixed(6) : "";
+    return {
+      google: "https://www.google.com/maps/search/?api=1&query=" + (p ? ll : encodeURIComponent(search)),
+      waze: p ? "https://waze.com/ul?ll=" + ll + "&navigate=yes" : "https://waze.com/ul?q=" + encodeURIComponent(search) + "&navigate=yes",
+      apple: p ? "https://maps.apple.com/?ll=" + ll + "&q=" + encodeURIComponent(title || "Lieu") : "https://maps.apple.com/?q=" + encodeURIComponent(search),
+    };
+  }
+  function el(tag, attrs, text) {
+    const e = document.createElement(tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v));
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function buildFicheView() {
+    const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", "), event = $("eventName").value.trim();
+    $("fTitle").textContent = event || name || addr || "Lieu";
+    $("fPlace").textContent = event ? name : ""; $("fPlace").hidden = !event || !name;
+    $("fAddr").textContent = addr;
+    document.title = (event || name || "Fiche") + " · Easy Route !";
+    // Infos (the phone number is a call link)
+    const dl = $("fInfos"); dl.textContent = "";
+    infoRows().forEach(([k, v]) => {
+      dl.appendChild(el("dt", {}, k));
+      const dd = el("dd");
+      const phone = $("contactPhone").value.trim();
+      if (k === "Contact sur place" && phone) {
+        const nm = $("contactName").value.trim();
+        if (nm) dd.append(nm + " — ");
+        dd.appendChild(el("a", { href: "tel:" + phone.replace(/[^\d+]/g, "") }, phone));
+      } else dd.textContent = v;
+      dl.appendChild(dd);
+    });
+    const cal = calEvent(), calBox = $("fCal"); calBox.textContent = "";
+    if (cal) {
+      calBox.appendChild(el("a", { class: "btn", href: googleCalUrl(cal), target: "_blank", rel: "noopener" }, "Ajouter à Google Agenda"));
+      const b = el("button", { type: "button", class: "btn" }, "Ajouter au calendrier (.ics)");
+      b.addEventListener("click", () => icsDownload()); calBox.appendChild(b);
+    }
+    $("fInfosPanel").hidden = !infoRows().length && !cal;
+    // Routes: the place, then each useful point
+    const box = $("fRoutes"); box.textContent = "";
+    const dests = [{ title: name || addr || "Lieu", p: st.place, color: "#ea4335", search: (name ? name + ", " : "") + addr }]
+      .concat(placedPois().map((t) => ({ title: poiLabel(t), p: st.pois[t.key], color: poiColor(t), search: "" })));
+    dests.forEach((d) => {
+      const row = el("div", { class: "froute" }), head = el("div", { class: "name" });
+      const dot = el("span", { class: "poidot" }); dot.style.background = d.color;
+      head.append(dot, d.title); row.appendChild(head);
+      const u = routeUrls(d.p, d.title, d.search), btns = el("div", { class: "routebtns" });
+      [["Google Maps", u.google], ["Waze", u.waze], ["Plans", u.apple]].forEach(([lbl, href]) => btns.appendChild(el("a", { class: "btn", href, target: "_blank", rel: "noopener" }, lbl)));
+      row.appendChild(btns);
+      if (d.p) row.appendChild(el("span", { class: "gps" }, "GPS : " + d.p.lat.toFixed(6) + ", " + d.p.lng.toFixed(6)));
+      box.appendChild(row);
+    });
+  }
+  function showFiche(on) {
+    ficheMode = on;
+    document.querySelector(".wrap > header").hidden = on;
+    document.querySelector(".wrap > .grid").hidden = on;
+    $("ficheView").hidden = !on;
+    const sheetBox = $("sheetBox");
+    if (on) $("fSheetSlot").appendChild(sheetBox);
+    else $("paneSheet").insertBefore(sheetBox, document.querySelector("#paneSheet .meta"));
+    schedule();
+  }
+  async function openFiche(packed) {
+    try {
+      const d = await unpackFiche(packed);
+      if (!d || d.v !== 1) throw new Error("format");
+      ficheMode = true;
+      // Fields left out of the link take their empty/default value (not this device's sample)
+      const fields = {};
+      JOB_FIELDS.forEach((k) => {
+        const e = $(k);
+        fields[k] = k in (d.fields || {}) ? d.fields[k]
+          : e.type === "checkbox" ? e.defaultChecked
+          : e.tagName === "SELECT" ? ([...e.options].find((o) => o.defaultSelected) || e.options[0]).value : "";
+      });
+      applyState({ ...d, fields });
+      buildFicheView();
+      showFiche(true);
+      return true;
+    } catch (_) {
+      ficheMode = false;
+      return false;
+    }
+  }
+  $("fJpg").addEventListener("click", () => saveSheet("jpg"));
+  confirmClick($("fEdit"), "Remplacer mon travail en cours ?", () => {
+    showFiche(false);
+    history.replaceState(null, "", location.pathname + location.search);
+    document.title = "Easy Route !";
+    sessionReady = true; saveNow();
+    updateMessage();
+    say("Fiche ouverte dans l’éditeur. Elle remplace votre travail en cours.", "ok");
+  });
+
   // ---------- Start ----------
   const start = parseCoords(els.coords.value);
   if (start) { st.place = start; st.center = { ...start }; }
-  try {
-    const saved = JSON.parse(localStorage.getItem("easyroute.session") || "null");
-    if (saved && saved.v === 1) { applyState(saved); say("Dernière session reprise. « Nouveau lieu » pour repartir de zéro."); }
-  } catch (_) {}
-  sessionReady = true;
+  const ficheHash = location.hash.startsWith("#fiche=") ? location.hash.slice(7) : "";
+  if (ficheHash) {
+    // Team view: never touch this device's saved session
+    openFiche(ficheHash).then((ok) => {
+      if (ok) return;
+      restoreSession(); sessionReady = true;
+      say("Ce lien de fiche est incomplet ou abîmé. Demandez un nouveau lien à l’expéditeur.", "warn");
+    });
+  } else {
+    restoreSession();
+    sessionReady = true;
+  }
+  // A fiche link opened in a tab where Easy Route is already open: reload to show it
+  window.addEventListener("hashchange", () => { if (location.hash.startsWith("#fiche=")) location.reload(); });
+  function restoreSession() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("easyroute.session") || "null");
+      if (saved && saved.v === 1) { applyState(saved); say("Dernière session reprise. « Nouveau lieu » pour repartir de zéro."); }
+    } catch (_) {}
+  }
   fontDbDo("readonly", (s) => s.get("venues")).then((list) => { venues = Array.isArray(list) ? list : []; fillVenueSelect(""); }).catch(() => {});
   $("sheetNote").textContent = standalone ? "" : "Le satellite et la recherche d’adresse demandent la version hors ligne";
   syncTool(); syncPois();
   render(); fontState();
-  fontDbDo("readonly", (s) => s.get("logo")).then((saved) => { if (saved && saved.blob) useLogo(saved.blob, true); }).catch(() => {});
+  if (!ficheHash) fontDbDo("readonly", (s) => s.get("logo")).then((saved) => { if (saved && saved.blob) useLogo(saved.blob, true); }).catch(() => {});
   if (document.fonts && document.fonts.load) {
     Promise.all([document.fonts.load('400 40px "Barlow"'), document.fonts.load('400 20px "JetBrains Mono"')]).then(() => { render(); fontState(); }, () => {});
   }
