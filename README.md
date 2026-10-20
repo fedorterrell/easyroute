@@ -27,6 +27,11 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Liens d’itinéraire **Google Maps**, **Waze** et **Plans (Apple)**, plus les coordonnées GPS, pour le lieu et pour chaque point utile. Un tableau permet de choisir quels liens inclure pour chaque point, pour garder un message court ; ces choix sont mémorisés sur l’appareil.
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
+**Sessions et lieux enregistrés**
+- Le travail en cours (adresse, position, points utiles, flèches, infos pratiques) est repris automatiquement à la prochaine ouverture. *Nouveau lieu* efface tout pour repartir de zéro.
+- *Enregistrer ce lieu* garde une fiche complète, logo compris, que l’on recharge depuis la liste *Lieux enregistrés*. Enregistrer à nouveau un lieu du même nom le met à jour.
+- Ces données restent dans le navigateur de l’appareil : elles ne sont ni envoyées en ligne, ni partagées automatiquement entre le Mac et l’iPhone. Pour les transférer, *Exporter les lieux* crée un fichier `.json` (logos compris) à ouvrir ailleurs avec *Importer des lieux…* ; à l’import, un lieu du même nom n’est remplacé que si la version importée est plus récente.
+
 ## Utilisation
 
 1. Saisissez le nom du lieu et l’adresse. La carte se centre toute seule après une seconde.
