@@ -490,10 +490,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     // Optional logo: above the text (side by side) or above the QR (stacked)
     const logo = withLogo && st.logo ? st.logo : null;
     let lgW = 0, lgH = 0;
-    const lgGap = Math.round(qrPx * 0.09);
+    const lgGap = Math.round(qrPx * 0.11);
     if (logo) {
-      const iw = logo.naturalWidth || 300, ih = logo.naturalHeight || 150;
-      lgH = Math.round(qrPx * 0.28); lgW = Math.round(lgH * iw / ih);
+      const [iw, ih] = imgSize(logo);
+      lgH = Math.round(qrPx * (layout === "side" ? 0.38 : 0.32)); lgW = Math.round(lgH * iw / ih);
       const maxW = layout === "side" ? s.textW : Math.round(qrPx * 1.4);
       if (lgW > maxW) { lgH = Math.round(lgH * maxW / lgW); lgW = maxW; }
       if (layout === "side") { textH += lgH + (blocks.length ? lgGap : 0); textW = Math.max(textW, lgW); }
@@ -530,7 +530,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     ctx.textBaseline = "top";
     let y = ty, lgX = 0, lgY = 0;
     if (logo) {
-      if (layout === "side") { lgX = tx; lgY = ty; y = ty + lgH + (blocks.length ? lgGap : 0); }
+      if (layout === "side") { lgX = tx + (textW - lgW) / 2; lgY = ty; y = ty + lgH + (blocks.length ? lgGap : 0); } // centred over the text column
       else { lgX = (W - lgW) / 2; lgY = s.pad; }
       ctx.imageSmoothingQuality = "high";
       ctx.drawImage(logo, lgX, lgY, lgW, lgH);
@@ -671,6 +671,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return layers;
   }
 
+  const imgSize = (img) => [img.naturalWidth || img.width || 300, img.naturalHeight || img.height || 150];
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
@@ -869,7 +870,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   function drawLogo(ctx, W, s) {
     const img = st.logo;
     if (!img) return;
-    const iw = img.naturalWidth || 300, ih = img.naturalHeight || 150;
+    const [iw, ih] = imgSize(img);
     let h = mmPx(st.logoMm) * s, w = h * iw / ih;
     const maxW = mmPx(90) * s;
     if (w > maxW) { h *= maxW / w; w = maxW; }
@@ -1175,11 +1176,37 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("logoOnLabel").disabled = !st.logo; $("logoOnLabel").checked = st.logoOnLabel;
     $("logoLabelHint").textContent = st.logo ? "" : "Ajoutez d’abord un logo.";
   }
+  // Crop transparent or white margins around a raster logo, so its size on the label/plan is the logo itself
+  function trimLogo(img) {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h || w * h > 16e6) return null;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+    let d; try { d = x.getImageData(0, 0, w, h).data; } catch (_) { return null; }
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      const i = (yy * w + xx) * 4;
+      if (d[i + 3] < 12 || (d[i] > 244 && d[i + 1] > 244 && d[i + 2] > 244)) continue;
+      if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy;
+    }
+    if (x1 < 0) return null;
+    const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.02);
+    x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+    const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+    if (cw * ch > 0.95 * w * h) return null; // nothing worth trimming
+    const out = document.createElement("canvas"); out.width = cw; out.height = ch;
+    out.getContext("2d").drawImage(c, x0, y0, cw, ch, 0, 0, cw, ch);
+    return out;
+  }
   function useLogo(blob, quiet) {
     return new Promise((res) => {
       const img = new Image(), reader = new FileReader();
       reader.onload = () => {
-        img.onload = () => { st.logo = img; st.logoData = reader.result; syncLogo(); render(); res(true); if (!quiet) say("Logo ajouté en haut à droite du plan.", "ok"); };
+        img.onload = () => {
+          const trimmed = blob.type === "image/svg+xml" ? null : trimLogo(img);
+          st.logo = trimmed || img; st.logoData = trimmed ? trimmed.toDataURL("image/png") : reader.result;
+          syncLogo(); render(); res(true); if (!quiet) say("Logo ajouté en haut à droite du plan.", "ok");
+        };
         img.onerror = () => { res(false); if (!quiet) say("Impossible d’ouvrir ce logo. Essayez un PNG ou un JPG.", "warn"); };
         img.src = reader.result;
       };
