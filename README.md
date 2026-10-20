@@ -54,8 +54,25 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `index.html` | Toute l’application : HTML, CSS et JavaScript dans un seul fichier, sans étape de compilation. |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
 | `Archive/` | Ancienne version de l’outil. |
+| `tests/`, `package.json`, `playwright.config.js`, `.github/workflows/` | Tests automatiques (voir ci-dessous). |
 
 Le site est servi par GitHub Pages depuis la branche `main` : chaque fusion sur `main` met le site à jour en une à deux minutes.
+
+## Tests automatiques
+
+Le dossier `tests/` contient des tests qui ouvrent Easy Route dans un vrai navigateur (Chromium, format ordinateur et format téléphone) et vérifient les fonctions principales : liens Google Maps et Waze, points utiles et couleurs, repère déplaçable, plan A4, logo, message équipe, agenda (.ics et Google Agenda), session, lieux enregistrés, export et import. Ils n’appellent aucun service extérieur.
+
+Ils tournent tout seuls sur GitHub à chaque pull request et à chaque mise à jour de `main` (onglet *Actions*). Une pull request dont les tests échouent affiche une croix rouge : ne la fusionnez pas sans vérifier.
+
+Pour les lancer sur votre Mac :
+
+```sh
+npm install
+npx playwright install chromium
+npm test
+```
+
+Ces fichiers ne servent qu’aux tests : le site lui-même reste un simple `index.html`, sans installation.
 
 ## Personnaliser
 
