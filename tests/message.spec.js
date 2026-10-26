@@ -57,3 +57,12 @@ test("agenda : lien Google Agenda et fichier .ics à l’heure de Paris", async 
   await page.uncheck("#lkCal");
   expect(await message(page)).not.toContain("Google Agenda");
 });
+
+test("le bouton WhatsApp transmet le message avec ses emojis, encodés en UTF-8", async ({ page }) => {
+  await page.fill("#eventName", "Concert Test");
+  await page.click("#tabMsg");
+  const href = await page.getAttribute("#msgWa", "href");
+  expect(href.startsWith("https://api.whatsapp.com/send?text=")).toBe(true);
+  expect(decodeURIComponent(href.split("text=")[1])).toBe(await message(page));
+  expect(href).toContain("%F0%9F%8E%AB"); // 🎫 encodé sur 4 octets
+});
