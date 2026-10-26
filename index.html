@@ -152,6 +152,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 .froute .gps { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .fiche .btn { justify-content: center; }
 .fiche .routebtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.combo { position: relative; }
+.suggest { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.18); max-height: 320px; overflow: auto; }
+.suggest li { padding: 8px 10px; border-radius: 4px; cursor: pointer; display: grid; gap: 2px; }
+.suggest li[aria-selected="true"], .suggest li:hover { background: var(--bg); }
+.suggest .sn { font-weight: 600; }
+.suggest .sa { font-size: .82rem; color: var(--muted); }
+.suggest .src { font-size: .72rem; color: var(--muted); padding: 4px 10px 2px; cursor: default; }
 .swatch { display: inline-block; width: 14px; height: 3px; background: var(--arrow); border-radius: 2px; }
 </style>
 
@@ -182,7 +189,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       </div>
       <div class="field">
         <label for="name">Nom du lieu <span class="opt">(facultatif)</span></label>
-        <input type="text" id="name" value="Espace Culturel du Bois-Des-Arts">
+        <div class="combo">
+          <input type="text" id="name" value="Espace Culturel du Bois-Des-Arts" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="nameSuggest" autocomplete="off">
+          <ul class="suggest" id="nameSuggest" role="listbox" aria-label="Lieux trouvés" hidden></ul>
+        </div>
+        <p class="hint" id="nameHint">Tapez le nom d’une salle ou d’un lieu : choisissez-le dans la liste pour remplir l’adresse et la position.</p>
       </div>
       <div class="field">
         <label for="addr">Adresse</label>
@@ -1200,7 +1211,29 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const p = parseCoords(els.coords.value);
     if (p) setPlace(p); else say("Coordonnées illisibles. Utilisez la forme 46.18793, 6.19892.", "warn");
   });
-  els.custom.addEventListener("change", () => { const p = parseCoords(els.custom.value); if (p) setPlace(p, "Position reprise du lien Google Maps."); });
+  els.custom.addEventListener("change", async () => {
+    const link = els.custom.value.trim(), p = parseCoords(link);
+    if (!p) return;
+    setPlace(p, "Position reprise du lien Google Maps.");
+    // Name from …/maps/place/<Nom+du+lieu>/…, address from the position
+    const m = link.match(/\/maps\/place\/([^/@?]+)/);
+    let filled = false;
+    if (m) {
+      const nm = decodeURIComponent(m[1].replace(/\+/g, " ")).trim();
+      if (nm && !/^-?\d/.test(nm)) { els.name.value = nm; filled = true; }
+    }
+    if (standalone) {
+      const addr = await reverseAddress(p);
+      if (addr) { els.addr.value = addr; filled = true; }
+    }
+    if (filled) {
+      $("exampleTag").hidden = true; exampleShown = false;
+      clearTimeout(lookupTimer);
+      lastLookup = els.addr.value.trim() + "|" + els.name.value.trim();
+      render(); autosave();
+      say("Nom, adresse et position repris du lien Google Maps. Vérifiez-les.", "ok");
+    }
+  });
 
   async function geocode(q) {
     try {
@@ -1237,7 +1270,93 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     }, 1200);
   }
   els.addr.addEventListener("input", autoLookup);
-  els.name.addEventListener("input", () => { if (!els.addr.value.trim()) autoLookup(); });
+  // ---------- Venue suggestions: typing a name proposes places; picking one fills the address and the position ----------
+  // Source: Photon (OpenStreetMap data). Countries where the number follows the street name:
+  const NUMBER_AFTER = ["ch", "de", "at", "it", "es", "nl", "be", "lu", "pt", "pl", "cz", "dk", "se", "no", "fi"];
+  function formatAddress(a) {
+    // a: { house, street, postcode, city, country, cc }
+    const cc = (a.cc || "").toLowerCase();
+    const line1 = a.street ? (a.house ? (NUMBER_AFTER.includes(cc) ? a.street + " " + a.house : a.house + " " + a.street) : a.street) : "";
+    const line2 = [a.postcode, a.city].filter(Boolean).join(" ");
+    return [line1, line2, cc && cc !== "fr" ? a.country : ""].filter(Boolean).join(", ");
+  }
+  let suggestAbort = null, suggestTimer = 0, suggestions = [], suggestIndex = -1;
+  const sugBox = $("nameSuggest");
+  function closeSuggest() { sugBox.hidden = true; els.name.setAttribute("aria-expanded", "false"); suggestIndex = -1; }
+  function showSuggest() {
+    sugBox.textContent = "";
+    suggestions.forEach((sg, i) => {
+      const li = document.createElement("li");
+      li.id = "sug-" + i; li.setAttribute("role", "option"); li.setAttribute("aria-selected", String(i === suggestIndex));
+      const n = document.createElement("span"); n.className = "sn"; n.textContent = sg.name;
+      const a = document.createElement("span"); a.className = "sa"; a.textContent = sg.address || sg.kind || "";
+      li.append(n, a);
+      li.addEventListener("mousedown", (e) => { e.preventDefault(); pickSuggestion(i); });
+      sugBox.appendChild(li);
+    });
+    const src = document.createElement("li"); src.className = "src"; src.setAttribute("role", "presentation"); src.textContent = "Données © contributeurs OpenStreetMap";
+    sugBox.appendChild(src);
+    sugBox.hidden = !suggestions.length;
+    els.name.setAttribute("aria-expanded", String(!!suggestions.length));
+    els.name.setAttribute("aria-activedescendant", suggestIndex >= 0 ? "sug-" + suggestIndex : "");
+  }
+  async function fetchSuggestions(q) {
+    if (suggestAbort) suggestAbort.abort();
+    suggestAbort = new AbortController();
+    const c = st.center || st.place;
+    const bias = c ? "&lat=" + c.lat.toFixed(4) + "&lon=" + c.lng.toFixed(4) : "&lat=46.2&lon=6.1";
+    try {
+      const r = await fetch("https://photon.komoot.io/api/?limit=6&lang=fr" + bias + "&q=" + encodeURIComponent(q), { signal: suggestAbort.signal });
+      const j = await r.json();
+      suggestions = (j.features || []).filter((f) => f.properties && f.properties.name).map((f) => {
+        const p = f.properties;
+        return {
+          name: p.name,
+          address: formatAddress({ house: p.housenumber, street: p.street, postcode: p.postcode, city: p.city || p.town || p.village || p.district, country: p.country, cc: p.countrycode }),
+          lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+        };
+      });
+      suggestIndex = -1;
+      if (document.activeElement === els.name) showSuggest();
+    } catch (e) { if (!e || e.name !== "AbortError") { suggestions = []; closeSuggest(); } }
+  }
+  function pickSuggestion(i) {
+    const sg = suggestions[i];
+    if (!sg) return;
+    closeSuggest();
+    els.name.value = sg.name;
+    if (sg.address) els.addr.value = sg.address;
+    $("exampleTag").hidden = true; exampleShown = false;
+    clearTimeout(lookupTimer);
+    lastLookup = els.addr.value.trim() + "|" + els.name.value.trim(); // already positioned: no extra lookup
+    setPlace({ lat: sg.lat, lng: sg.lng }, sg.address ? "Adresse et position remplies. Vérifiez le repère sur le plan." : "Position remplie ; ce lieu n’a pas d’adresse complète, complétez-la si besoin.");
+    render(); autosave();
+  }
+  els.name.addEventListener("input", () => {
+    clearTimeout(suggestTimer);
+    const q = els.name.value.trim();
+    if (q.length < 3 || !standalone) { closeSuggest(); return; }
+    suggestTimer = setTimeout(() => fetchSuggestions(q), 350);
+  });
+  els.name.addEventListener("keydown", (e) => {
+    if (sugBox.hidden) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      suggestIndex = (suggestIndex + (e.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length;
+      showSuggest();
+    } else if (e.key === "Enter" && suggestIndex >= 0) { e.preventDefault(); pickSuggestion(suggestIndex); }
+    else if (e.key === "Escape") closeSuggest();
+  });
+  els.name.addEventListener("blur", () => setTimeout(closeSuggest, 150));
+
+  // A full Google Maps link pasted in "Lien personnalisé": take the place name from it and look up the address
+  async function reverseAddress(p) {
+    try {
+      const r = await fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=" + p.lat + "&lon=" + p.lng, { headers: { "Accept-Language": "fr" } });
+      const a = (await r.json()).address || {};
+      return formatAddress({ house: a.house_number, street: a.road || a.pedestrian || a.footway, postcode: a.postcode, city: a.city || a.town || a.village || a.municipality, country: a.country, cc: a.country_code });
+    } catch (_) { return ""; }
+  }
   els.addr.addEventListener("blur", () => { if (els.addr.value.trim() + "|" + els.name.value.trim() !== lastLookup) { clearTimeout(lookupTimer); lookup(true); } });
 
   // Logo

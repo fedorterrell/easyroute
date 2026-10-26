@@ -41,7 +41,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 
 ## Utilisation
 
-1. Saisissez le nom du lieu et l’adresse. La carte se centre toute seule après une seconde.
+1. Tapez le nom du lieu et choisissez-le dans la liste proposée : l’adresse et la position se remplissent. Sinon, saisissez l’adresse : la carte se centre toute seule après une seconde. Un lien Google Maps complet collé dans *Lien personnalisé* remplit aussi le nom, l’adresse et la position.
 2. Vérifiez le repère rouge et faites-le glisser si besoin.
 3. Placez les points utiles (*Placer*, puis touchez le plan) et dessinez des flèches si utile.
 4. Remplissez les infos pratiques à gauche.
@@ -98,7 +98,7 @@ Le dossier `worker/` contient le code du service qui range les fiches partagées
 ## Services externes et crédits
 
 - **Imagerie satellite** : [Esri World Imagery](https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer) et couches de référence Esri. La mention « Imagerie © Esri, Maxar, Earthstar Geographics » est imprimée sur chaque plan et doit y rester.
-- **Recherche d’adresse** : [OpenStreetMap Nominatim](https://nominatim.org/), avec [Photon](https://photon.komoot.io/) en secours. Données © contributeurs OpenStreetMap. L’outil ne lance une recherche qu’après une pause dans la saisie, pour respecter la [politique d’usage de Nominatim](https://operations.osmfoundation.org/policies/nominatim/) (une requête par seconde au maximum).
+- **Recherche d’adresse et propositions de lieux** : [OpenStreetMap Nominatim](https://nominatim.org/) et [Photon](https://photon.komoot.io/). Données © contributeurs OpenStreetMap. L’outil ne lance une recherche qu’après une pause dans la saisie, pour respecter la [politique d’usage de Nominatim](https://operations.osmfoundation.org/policies/nominatim/) (une requête par seconde au maximum).
 - **QR codes** : [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) de Kazuhiko Arase, licence MIT.
 - **Polices de l’interface** : Barlow et JetBrains Mono, via Google Fonts, licence SIL Open Font License.
 
