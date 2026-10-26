@@ -6,14 +6,18 @@
 //   POST /f         corps {"d": "<fiche>"}                 ->  {"id": "k7Qp2xA9bC", "key": "<clé secrète>"}
 //   PUT  /f/<id>    corps {"d": "<fiche>", "key": "<clé>"} ->  {"id": "k7Qp2xA9bC"}   (même lien, contenu mis à jour)
 //   GET  /f/<id>                                           ->  {"d": "<fiche>"}
+//   GET  /ics/<id>                                         ->  événement d'agenda (.ics) de la fiche
 //   GET  /health                                           ->  ok
+//
+// POST et PUT acceptent aussi "ics": le fichier d'agenda préparé par Easy Route. Le jeton
+// __EASYROUTE_ID__ qu'il contient est remplacé par l'identifiant de la fiche à la lecture.
 //
 // Chaque fiche reçoit un identifiant aléatoire (impossible à deviner) et une clé secrète que seul
 // l'appareil qui l'a créée connaît : lui seul peut la modifier ensuite. La base ne garde qu'une
 // empreinte SHA-256 de la clé, jamais la clé elle-même.
 
 const DEFAULT_ORIGINS = ["https://fedorterrell.github.io"];
-const MAX_LENGTH = 16 * 1024;             // une fiche fait environ 1 Ko
+const MAX_LENGTH = 48 * 1024;             // une fiche fait environ 1 Ko, son .ics quelques Ko
 const KEEP_DAYS = 400;                    // durée de conservation après la dernière modification
 const ID_LENGTH = 10;                     // 62^10 combinaisons
 const KEY_LENGTH = 24;                    // 62^24 combinaisons
@@ -24,7 +28,7 @@ async function ensureTable(db) {
   if (tableReady) return;
   await db.prepare("CREATE TABLE IF NOT EXISTS fiches (id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL)").run();
   // Colonnes ajoutées avec la mise à jour des fiches (sans effet si elles existent déjà)
-  for (const col of ["key_hash TEXT", "updated INTEGER"]) {
+  for (const col of ["key_hash TEXT", "updated INTEGER", "ics TEXT"]) {
     try { await db.prepare("ALTER TABLE fiches ADD COLUMN " + col).run(); } catch (_) { /* déjà présente */ }
   }
   tableReady = true;
@@ -68,7 +72,21 @@ async function readBody(request) {
   try { parsed = JSON.parse(body); } catch (_) { return { error: ["Format invalide.", 400] }; }
   const d = parsed && parsed.d;
   if (typeof d !== "string" || !/^[0-9][A-Za-z0-9_-]+$/.test(d)) return { error: ["Format invalide.", 400] };
-  return { d, key: typeof parsed.key === "string" ? parsed.key : "" };
+  const ics = typeof parsed.ics === "string" && parsed.ics.startsWith("BEGIN:VCALENDAR") && parsed.ics.length < 32 * 1024 ? parsed.ics : null;
+  return { d, key: typeof parsed.key === "string" ? parsed.key : "", ics };
+}
+
+// Lignes de 75 octets au plus (RFC 5545), après remplacement de l'identifiant
+function icsWithId(ics, id) {
+  const enc = new TextEncoder();
+  return ics.replace(/\r\n[ \t]/g, "").replace(/__EASYROUTE_ID__/g, id).split(/\r?\n/).map((line) => {
+    const out = []; let cur = "";
+    for (const ch of line) {
+      if (enc.encode(cur + ch).length > (out.length ? 74 : 75)) { out.push(cur); cur = ch; } else cur += ch;
+    }
+    out.push(cur);
+    return out.join("\r\n ");
+  }).join("\r\n");
 }
 
 export default {
@@ -88,11 +106,11 @@ export default {
       if (body.error) return json({ error: body.error[0] }, body.error[1], cors);
       await ensureTable(env.DB);
       const id = randomToken(ID_LENGTH), key = randomToken(KEY_LENGTH), now = Date.now();
-      await env.DB.prepare("INSERT INTO fiches (id, data, created, key_hash, updated) VALUES (?, ?, ?, ?, ?)")
-        .bind(id, body.d, now, await sha256(key), now).run();
+      await env.DB.prepare("INSERT INTO fiches (id, data, created, key_hash, updated, ics) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(id, body.d, now, await sha256(key), now, body.ics).run();
       // Ménage de temps en temps : fiches non modifiées depuis KEEP_DAYS
       if (Math.random() < 0.02) await env.DB.prepare("DELETE FROM fiches WHERE COALESCE(updated, created) < ?").bind(now - KEEP_DAYS * 864e5).run();
-      return json({ id, key }, 200, cors);
+      return json({ id, key, ics: true }, 200, cors);
     }
 
     // Mettre à jour une fiche (même lien), avec sa clé
@@ -104,8 +122,8 @@ export default {
       const row = await env.DB.prepare("SELECT key_hash FROM fiches WHERE id = ?").bind(m[1]).first();
       if (!row) return json({ error: "Fiche introuvable ou expirée." }, 404, cors);
       if (!row.key_hash || !body.key || row.key_hash !== await sha256(body.key)) return json({ error: "Clé invalide." }, 403, cors);
-      await env.DB.prepare("UPDATE fiches SET data = ?, updated = ? WHERE id = ?").bind(body.d, Date.now(), m[1]).run();
-      return json({ id: m[1] }, 200, cors);
+      await env.DB.prepare("UPDATE fiches SET data = ?, updated = ?, ics = ? WHERE id = ?").bind(body.d, Date.now(), body.ics, m[1]).run();
+      return json({ id: m[1], ics: true }, 200, cors);
     }
 
     // Lire une fiche (pas de cache : une fiche peut avoir été mise à jour)
@@ -114,6 +132,21 @@ export default {
       const row = await env.DB.prepare("SELECT data FROM fiches WHERE id = ?").bind(m[1]).first();
       if (!row) return json({ error: "Fiche introuvable ou expirée." }, 404, cors);
       return json({ d: row.data }, 200, { ...cors, "Cache-Control": "no-store" });
+    }
+
+    // Événement d'agenda : s'ouvre dans Calendrier (iPhone, Mac), Outlook…
+    const mi = url.pathname.match(/^\/ics\/([0-9A-Za-z]{6,16})(\.ics)?$/);
+    if (request.method === "GET" && mi) {
+      await ensureTable(env.DB);
+      const row = await env.DB.prepare("SELECT ics FROM fiches WHERE id = ?").bind(mi[1]).first();
+      if (!row || !row.ics) {
+        return new Response("Pas d’événement d’agenda pour cette fiche (fiche introuvable, expirée, ou sans date de Get-In).",
+          { status: 404, headers: { ...cors, "Content-Type": "text/plain; charset=utf-8" } });
+      }
+      return new Response(icsWithId(row.ics, mi[1]), { headers: { ...cors,
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": 'inline; filename="get-in.ics"',
+        "Cache-Control": "no-store" } });
     }
 
     return json({ error: "Adresse inconnue." }, 404, cors);

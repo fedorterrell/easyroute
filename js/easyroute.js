@@ -1013,14 +1013,19 @@
     const name = els.name.value.trim(), addr = els.addr.value.trim().replace(/\s*\n\s*/g, ", ");
     const lines = [], event = $("eventName").value.trim();
     if (event) lines.push("\u{1F3AB} " + event, "");
-    const ficheLine = !forCalendar && $("lkFiche").checked && ficheUrl ? ["", "\u{1F517} Fiche complète (plan, accès, itinéraires) :", ficheUrl] : [];
+    // The fiche link also goes into the .ics description
+    const ficheLine = $("lkFiche").checked && ficheUrl ? ["", "\u{1F517} Fiche complète (plan, accès, itinéraires) :", ficheUrl] : [];
     if (name) lines.push("\u{1F4CD} " + name);
     if (addr) lines.push(name ? addr : "\u{1F4CD} " + addr);
     lines.push(...ficheLine);
     const info = infoRows();
     if (info.length) lines.push("", ...info.map(([k, v, icon]) => icon + " " + k + " : " + v));
     const cal = calEvent();
-    if (cal && !forCalendar && $("lkCal").checked) lines.push("", "\u{1F4C5} Ajouter à Google Agenda :", calLink(cal));
+    if (cal && !forCalendar && $("lkCal").checked) {
+      lines.push("", "\u{1F4C5} Ajouter à Google Agenda :", calLink(cal));
+      const icsUrl = icsLink();
+      if (icsUrl) lines.push("", "\u{1F4C6} Ajouter au calendrier (iPhone, Mac, Outlook) :", icsUrl);
+    }
     lines.push("");
     if (anyLink(linkSel.main)) lines.push("Itinéraire :", ...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr, linkSel.main));
     placedPois().forEach((t) => {
@@ -1078,6 +1083,19 @@
   const dayStamp = (dt) => dt.getFullYear() + String(dt.getMonth() + 1).padStart(2, "0") + String(dt.getDate()).padStart(2, "0");
   // Short calendar link when the fiche has a short link (…/#a=<id>: Easy Route redirects to Google Calendar),
   // otherwise the full Google Calendar link
+  // .ics served by the Worker for the fiche's short link (only once the Worker has confirmed it stores it)
+  function icsLink() {
+    const m = (ficheUrl || "").match(/#s=([0-9A-Za-z]{6,16})$/);
+    return m && st.share && st.share.ics && st.share.id === m[1] ? SHORT_API + "/ics/" + m[1] : "";
+  }
+  // .ics sent along with the fiche: the Worker replaces __EASYROUTE_ID__ by the fiche's id
+  function icsForUpload() {
+    const ev = calEvent();
+    if (!ev) return undefined;
+    const saved = ficheUrl;
+    ficheUrl = siteBase() + "#s=__EASYROUTE_ID__";
+    try { return icsText(ev, "__EASYROUTE_ID__@easyroute"); } finally { ficheUrl = saved; }
+  }
   function calLink(ev) {
     const m = (ficheUrl || "").match(/#s=([0-9A-Za-z]{6,16})$/);
     return m ? siteBase() + "#a=" + m[1] : googleCalUrl(ev);
@@ -1090,7 +1108,7 @@
       + "&dates=" + dates + (ev.location ? "&location=" + encodeURIComponent(ev.location) : "")
       + (details ? "&details=" + encodeURIComponent(details) : "");
   }
-  function icsText(ev) {
+  function icsText(ev, uid) {
     const esc = (v) => String(v).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
     const enc = new TextEncoder();
     const fold = (line) => { // RFC 5545: lines of at most 75 octets
@@ -1104,7 +1122,7 @@
     const lines = [
       "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Easy Route//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
       "BEGIN:VEVENT",
-      "UID:" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + "@easyroute",
+      "UID:" + (uid || Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + "@easyroute"),
       "DTSTAMP:" + utcStamp(new Date()),
       ev.allDay ? "DTSTART;VALUE=DATE:" + dayStamp(ev.start) : "DTSTART:" + utcStamp(ev.start),
       ev.allDay ? "DTEND;VALUE=DATE:" + dayStamp(ev.end) : "DTEND:" + utcStamp(ev.end),
@@ -1343,7 +1361,7 @@
     };
   }
   function applyState(d) {
-    st.share = d.share && d.share.id && d.share.key ? { id: d.share.id, key: d.share.key } : null;
+    st.share = d.share && d.share.id && d.share.key ? { id: d.share.id, key: d.share.key, ics: !!d.share.ics } : null;
     const f = d.fields || {};
     JOB_FIELDS.forEach((id) => { if (!(id in f)) return; const el = $(id); if (el.type === "checkbox") el.checked = !!f[id]; else el.value = f[id]; });
     st.roads = $("roads").checked; st.pin = $("pin").checked;
@@ -1541,8 +1559,10 @@
     };
     try {
       if (st.share) {
-        const r = await fetch(SHORT_API + "/f/" + st.share.id, { method: "PUT", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, key: st.share.key }) });
+        const r = await fetch(SHORT_API + "/f/" + st.share.id, { method: "PUT", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, key: st.share.key, ics: icsForUpload() }) });
         if (r.ok) {
+          const res = await r.json().catch(() => ({}));
+          if (!!res.ics !== !!st.share.ics) { st.share.ics = !!res.ics; autosave(); updateMessage(); }
           shortFailed = false; syncedPacked = packed;
           if (packed === currentPacked) setFicheUrl(shortUrl(st.share.id), SYNCED);
           return;
@@ -1551,12 +1571,12 @@
         st.share = null; // link no longer ours (expired, or older Worker): make a new one
         note = "Nouveau lien créé : l’ancien ne pouvait plus être mis à jour.";
       }
-      const r = await fetch(SHORT_API + "/f", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed }) });
+      const r = await fetch(SHORT_API + "/f", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, ics: icsForUpload() }) });
       if (!r.ok) throw new Error(r.status);
-      const { id, key } = await r.json();
+      const { id, key, ics } = await r.json();
       if (!/^[0-9A-Za-z]{6,16}$/.test(id || "")) throw new Error("id");
       shortFailed = false;
-      if (key) { st.share = { id, key }; syncedPacked = packed; autosave(); }
+      if (key) { st.share = { id, key, ics: !!ics }; syncedPacked = packed; autosave(); }
       else shortIds.set(packed, id); // older Worker: one link per version
       if (packed === currentPacked) setFicheUrl(shortUrl(id), note || (key ? "Lien court prêt. Il reste le même si vous modifiez la fiche." : "Lien court prêt."));
       syncFicheButtons();

@@ -25,7 +25,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 **Message équipe**
 - Nom de l’événement, nom du lieu, adresse et infos pratiques : Get-In (date et heure), contact sur place, parking, code d’accès, hauteur max, consignes d’accès.
 - Liens d’itinéraire **Google Maps**, **Waze** et **Plans (Apple)**, plus les coordonnées GPS, pour le lieu et pour chaque point utile. Un tableau permet de choisir quels liens inclure pour chaque point, pour garder un message court ; ces choix sont mémorisés sur l’appareil.
-- **Agenda** : à partir de la date et de l’heure du Get-In (durée au choix : 1, 4, 6 ou 8 h ; journée entière sans heure), un lien « Ajouter à Google Agenda » dans le message, qui marche sur tous les téléphones (lien court `…/#a=…` quand la fiche a un lien court : Easy Route redirige vers Google Agenda avec la dernière version de la fiche), et un fichier `.ics` (iPhone, Mac, Outlook, la plupart des Android) avec rappel 1 h avant.
+- **Agenda** : à partir de la date et de l’heure du Get-In (durée au choix : 1, 4, 6 ou 8 h ; journée entière sans heure), un lien « Ajouter à Google Agenda » dans le message, qui marche sur tous les téléphones (lien court `…/#a=…` quand la fiche a un lien court : Easy Route redirige vers Google Agenda avec la dernière version de la fiche), un lien court vers le fichier `.ics` servi par le Worker (s’ouvre dans Calendrier sur iPhone et Mac, dans Outlook ; suit lui aussi les modifications), et un fichier `.ics` (iPhone, Mac, Outlook, la plupart des Android) avec rappel 1 h avant.
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
 **Fiche partagée**
@@ -91,7 +91,7 @@ Ces fichiers ne servent qu’aux tests : le site lui-même n’a besoin d’aucu
 Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
 
 - Adresse : `https://easyroute-fiches.piotrskotnicki.workers.dev` (constante `SHORT_API` dans `js/easyroute.js`).
-- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche. Seul le site Easy Route peut créer ou modifier des fiches ; quiconque a le lien peut la lire.
+- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche ; `GET /ics/<id>` renvoie son événement d’agenda (.ics), envoyé par Easy Route avec la fiche (champ `ics`). Seul le site Easy Route peut créer ou modifier des fiches ; quiconque a le lien peut la lire.
 - Identifiant aléatoire de 10 caractères (impossible à deviner) ; la clé secrète n’est connue que de l’appareil qui a créé la fiche, la base n’en garde qu’une empreinte.
 - Fiches conservées environ 13 mois après leur dernière modification (`KEEP_DAYS`), puis effacées.
 - Mise à jour du service : Cloudflare > Workers & Pages > `easyroute-fiches` > *Edit code*, coller le contenu de `worker/easyroute-fiches.js`, *Deploy*. La base D1 doit rester reliée sous le nom `DB`.
