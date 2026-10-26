@@ -1854,30 +1854,78 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return { v: 1, fields: f, app, layout, place: rPt(st.place), center: rPt(st.center), zoom: st.zoom, pois,
       poiLabels: labels, poiColors: colors, arrows: st.arrows.sat.map((a) => a.map(([x, y]) => [r7(x), r7(y)])) };
   }
+  // Compact link format (v2): positional array instead of named fields, 6 decimals for coordinates,
+  // arrows as small integer steps. About half the length of v1. Old links (v1) still open.
+  // Never reorder these lists: append only, or old links would decode wrongly.
+  const F2 = ["name", "addr", "custom", "eventName", "callDate", "callTime", "callDur", "contactName",
+    "contactPhone", "parking", "accessCode", "maxHeight", "note", "qrmm"];
+  const q6 = (v) => Math.round(v * 1e6) / 1e6;
+  const ARROW_SCALE = 2 ** 20; // world units → pixels at zoom 20
+  function toCompact(d) {
+    const f = d.fields || {};
+    const fields = F2.map((k) => (f[k] === undefined ? "" : f[k]));
+    while (fields.length && fields[fields.length - 1] === "") fields.pop();
+    const flags = (f.useName ? 1 : 0) | (f.showUrl ? 2 : 0) | (f.infoOnSheet ? 4 : 0) | (d.app === "waze" ? 8 : 0) | (d.layout === "stack" ? 16 : 0);
+    const pt = (p) => (p ? [q6(p.lat), q6(p.lng)] : 0);
+    const same = d.place && d.center && q6(d.place.lat) === q6(d.center.lat) && q6(d.place.lng) === q6(d.center.lng);
+    const pois = [], labels = [], colors = [];
+    POI_TYPES.forEach((t, i) => {
+      if (d.pois[t.key]) pois.push([i, ...pt(d.pois[t.key])]);
+      if (d.poiLabels[t.key]) labels.push([i, d.poiLabels[t.key]]);
+      if (d.poiColors[t.key]) colors.push([i, d.poiColors[t.key].replace("#", "")]);
+    });
+    const arrows = d.arrows.map((a) => {
+      const out = []; let px = 0, py = 0;
+      a.forEach(([x, y]) => { const ix = Math.round(x * ARROW_SCALE), iy = Math.round(y * ARROW_SCALE); out.push(ix - px, iy - py); px = ix; py = iy; });
+      return out;
+    });
+    const c = [2, fields, flags, pt(d.place), same ? 0 : pt(d.center), d.zoom, pois, labels, colors, arrows];
+    while (Array.isArray(c[c.length - 1]) && !c[c.length - 1].length) c.pop();
+    return c;
+  }
+  function fromCompact(c) {
+    const [, fields = [], flags = 0, place = 0, center = 0, zoom = 18, pois = [], labels = [], colors = [], arrows = []] = c;
+    const f = {};
+    F2.forEach((k, i) => { if (fields[i] !== undefined && fields[i] !== "") f[k] = fields[i]; });
+    f.useName = !!(flags & 1); f.showUrl = !!(flags & 2); f.infoOnSheet = !!(flags & 4);
+    const pt = (a) => (a ? { lat: a[0], lng: a[1] } : null);
+    const d = { v: 1, fields: f, app: flags & 8 ? "waze" : "google", layout: flags & 16 ? "stack" : "side",
+      place: pt(place), center: pt(center) || pt(place), zoom, pois: {}, poiLabels: {}, poiColors: {}, arrows: [] };
+    pois.forEach(([i, lat, lng]) => { if (POI_TYPES[i]) d.pois[POI_TYPES[i].key] = { lat, lng }; });
+    labels.forEach(([i, l]) => { if (POI_TYPES[i]) d.poiLabels[POI_TYPES[i].key] = l; });
+    colors.forEach(([i, h]) => { if (POI_TYPES[i]) d.poiColors[POI_TYPES[i].key] = "#" + h; });
+    d.arrows = arrows.map((flat) => {
+      const pts = []; let x = 0, y = 0;
+      for (let i = 0; i + 1 < flat.length; i += 2) { x += flat[i]; y += flat[i + 1]; pts.push([x / ARROW_SCALE, y / ARROW_SCALE]); }
+      return pts;
+    });
+    return d;
+  }
   async function packFiche(obj) {
-    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    const bytes = new TextEncoder().encode(JSON.stringify(toCompact(obj)));
     if (window.CompressionStream) {
       try {
         const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-        return "1" + b64url(new Uint8Array(await new Response(stream).arrayBuffer()));
+        return "2" + b64url(new Uint8Array(await new Response(stream).arrayBuffer()));
       } catch (_) {}
     }
-    return "0" + b64url(bytes);
+    return "3" + b64url(bytes);
   }
+  // Prefix: 0/1 = v1 (raw/compressed), 2/3 = compact v2 (compressed/raw)
   async function unpackFiche(str) {
     const bytes = unb64url(str.slice(1));
-    if (str[0] === "1") {
-      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-      return JSON.parse(await new Response(stream).text());
-    }
-    return JSON.parse(new TextDecoder().decode(bytes));
+    const text = str[0] === "1" || str[0] === "2"
+      ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text()
+      : new TextDecoder().decode(bytes);
+    const data = JSON.parse(text);
+    return str[0] === "2" || str[0] === "3" ? fromCompact(data) : data;
   }
   const siteBase = () => (/^https?:$/.test(location.protocol) && !/claude/.test(location.hostname) ? location.origin + location.pathname : SITE_URL);
   function refreshFiche() {
     if (ficheMode) return;
     clearTimeout(ficheTimer);
     ficheTimer = setTimeout(async () => {
-      const url = st.place || els.addr.value.trim() ? siteBase() + "#fiche=" + await packFiche(ficheData()) : "";
+      const url = st.place || els.addr.value.trim() ? siteBase() + "#f=" + await packFiche(ficheData()) : "";
       $("ficheOpen").href = url || "#";
       $("ficheCopy").disabled = !url;
       if (url !== ficheUrl) { ficheUrl = url; updateMessage(); }
@@ -1992,7 +2040,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   // ---------- Start ----------
   const start = parseCoords(els.coords.value);
   if (start) { st.place = start; st.center = { ...start }; }
-  const ficheHash = location.hash.startsWith("#fiche=") ? location.hash.slice(7) : "";
+  const ficheHash = (location.hash.match(/^#(?:f|fiche)=(.+)$/) || [])[1] || ""; // #f= (v2) or #fiche= (old links)
   if (ficheHash) {
     // Team view: never touch this device's saved session
     openFiche(ficheHash).then((ok) => {
@@ -2005,7 +2053,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     sessionReady = true;
   }
   // A fiche link opened in a tab where Easy Route is already open: reload to show it
-  window.addEventListener("hashchange", () => { if (location.hash.startsWith("#fiche=")) location.reload(); });
+  window.addEventListener("hashchange", () => { if (/^#(?:f|fiche)=/.test(location.hash)) location.reload(); });
   function restoreSession() {
     try {
       const saved = JSON.parse(localStorage.getItem("easyroute.session") || "null");

@@ -30,7 +30,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 
 **Fiche partagée**
 - Le message équipe contient un **lien de fiche** (case à cocher). L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans pour le lieu et chaque point utile, ajout à l’agenda, et le plan avec téléchargement en JPG.
-- Toute la fiche est contenue dans le lien (compressée) : rien n’est stocké sur un serveur, et le lien reste valable tant que le site existe. Le logo n’y figure pas.
+- Toute la fiche est contenue dans le lien, dans un format compact et compressé (environ 300 caractères, un peu plus avec des flèches) : rien n’est stocké sur un serveur, et le lien reste valable tant que le site existe. Le logo n’y figure pas.
 - *Modifier dans Easy Route* reprend la fiche dans l’éditeur, à la place du travail en cours.
 
 **Sessions et lieux enregistrés**
