@@ -25,7 +25,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 **Message équipe**
 - Nom de l’événement, nom du lieu, adresse et infos pratiques : Get-In (date et heure), contact sur place, parking, code d’accès, hauteur max, consignes d’accès.
 - Liens d’itinéraire **Google Maps**, **Waze** et **Plans (Apple)**, plus les coordonnées GPS, pour le lieu et pour chaque point utile. Un tableau permet de choisir quels liens inclure pour chaque point, pour garder un message court ; ces choix sont mémorisés sur l’appareil.
-- **Agenda** : à partir de la date et de l’heure du Get-In (durée au choix : 1, 4, 6 ou 8 h ; journée entière sans heure), un lien « Ajouter à Google Agenda » dans le message, qui marche sur tous les téléphones, et un fichier `.ics` (iPhone, Mac, Outlook, la plupart des Android) avec rappel 1 h avant.
+- **Agenda** : à partir de la date et de l’heure du Get-In (durée au choix : 1, 4, 6 ou 8 h ; journée entière sans heure), un lien « Ajouter à Google Agenda » dans le message, qui marche sur tous les téléphones (lien court `…/#a=…` quand la fiche a un lien court : Easy Route redirige vers Google Agenda avec la dernière version de la fiche), et un fichier `.ics` (iPhone, Mac, Outlook, la plupart des Android) avec rappel 1 h avant.
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
 **Fiche partagée**

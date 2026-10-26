@@ -1020,7 +1020,7 @@
     const info = infoRows();
     if (info.length) lines.push("", ...info.map(([k, v, icon]) => icon + " " + k + " : " + v));
     const cal = calEvent();
-    if (cal && !forCalendar && $("lkCal").checked) lines.push("", "\u{1F4C5} Ajouter à Google Agenda :", googleCalUrl(cal));
+    if (cal && !forCalendar && $("lkCal").checked) lines.push("", "\u{1F4C5} Ajouter à Google Agenda :", calLink(cal));
     lines.push("");
     if (anyLink(linkSel.main)) lines.push("Itinéraire :", ...routeLines(st.place, name || addr, (name ? name + ", " : "") + addr, linkSel.main));
     placedPois().forEach((t) => {
@@ -1076,6 +1076,12 @@
   }
   const utcStamp = (dt) => dt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const dayStamp = (dt) => dt.getFullYear() + String(dt.getMonth() + 1).padStart(2, "0") + String(dt.getDate()).padStart(2, "0");
+  // Short calendar link when the fiche has a short link (…/#a=<id>: Easy Route redirects to Google Calendar),
+  // otherwise the full Google Calendar link
+  function calLink(ev) {
+    const m = (ficheUrl || "").match(/#s=([0-9A-Za-z]{6,16})$/);
+    return m ? siteBase() + "#a=" + m[1] : googleCalUrl(ev);
+  }
   function googleCalUrl(ev) {
     const dates = ev.allDay ? dayStamp(ev.start) + "/" + dayStamp(ev.end) : utcStamp(ev.start) + "/" + utcStamp(ev.end);
     // Short description (infos only) to keep the link reasonably short; the location opens the map
@@ -1729,13 +1735,14 @@
   // ---------- Start ----------
   const start = parseCoords(els.coords.value);
   if (start) { st.place = start; st.center = { ...start }; }
-  const ficheMatch = location.hash.match(/^#(fiche|s)=(.+)$/);
+  const ficheMatch = location.hash.match(/^#(fiche|s|a)=(.+)$/); // a = short calendar link
   const ficheHash = ficheMatch ? ficheMatch[2] : "";
   if (ficheHash) {
     // Team view: never touch this device's saved session
     (async () => {
       let packed = ficheHash, problem = "Ce lien de fiche est incomplet ou abîmé. Demandez un nouveau lien à l’expéditeur.";
-      if (ficheMatch[1] === "s") {
+      if (ficheMatch[1] === "a") say("Ouverture de Google Agenda…");
+      if (ficheMatch[1] === "s" || ficheMatch[1] === "a") {
         packed = "";
         try {
           const r = await fetch(SHORT_API + "/f/" + encodeURIComponent(ficheHash));
@@ -1743,7 +1750,14 @@
           else if (r.status === 404) problem = "Cette fiche est introuvable ou a expiré. Demandez un nouveau lien à l’expéditeur.";
         } catch (_) { problem = "Impossible de charger la fiche pour l’instant (pas de réseau ?). Réessayez dans un moment."; }
       }
-      if (packed && await openFiche(packed)) return;
+      if (packed && await openFiche(packed)) {
+        if (ficheMatch[1] !== "a") return;
+        // Calendar link: go straight to Google Calendar with the event of the fiche (always its latest version)
+        const ev = calEvent();
+        if (ev) location.replace(googleCalUrl(ev));
+        else say("Cette fiche n’a pas de date de Get-In : rien à ajouter à l’agenda.", "warn");
+        return;
+      }
       restoreSession(); sessionReady = true;
       say(problem, "warn");
     })();
@@ -1752,7 +1766,7 @@
     sessionReady = true;
   }
   // A fiche link opened in a tab where Easy Route is already open: reload to show it
-  window.addEventListener("hashchange", () => { if (/^#(fiche|s)=/.test(location.hash)) location.reload(); });
+  window.addEventListener("hashchange", () => { if (/^#(fiche|s|a)=/.test(location.hash)) location.reload(); });
   function restoreSession() {
     try {
       const saved = JSON.parse(localStorage.getItem("easyroute.session") || "null");
