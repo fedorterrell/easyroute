@@ -3,7 +3,7 @@ const { test, expect, placePoint, message, openAsTeam } = require("./helpers");
 async function ficheLink(page) {
   await page.click("#tabMsg");
   await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
-  await expect(page.locator("#ficheState")).toHaveText("Lien court prêt.");
+  await expect(page.locator("#ficheState")).toHaveText(/Lien court prêt|Fiche en ligne à jour/);
   return page.getAttribute("#ficheOpen", "href");
 }
 
@@ -76,4 +76,75 @@ test.describe("service des liens courts injoignable", () => {
     await expect(team.locator("#fInfos")).toContainText("Julien");
     await team.context().close();
   });
+});
+
+const shortId = async (page) => {
+  await page.click("#tabMsg");
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
+  return (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1];
+};
+
+test("modifier la fiche garde le même lien, et l’équipe voit la nouvelle version", async ({ page, context }) => {
+  await page.fill("#contactName", "Julien");
+  const id = await shortId(page);
+  const url = await page.getAttribute("#ficheOpen", "href");
+  await page.fill("#contactName", "Marie");
+  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour/);
+  expect(await shortId(page)).toBe(id);
+  const team = await openAsTeam(context.browser(), url);
+  await expect(team.locator("#fInfos")).toContainText("Marie");
+  await team.context().close();
+  // La session garde le lien après réouverture
+  await page.waitForTimeout(800);
+  await page.reload();
+  expect(await shortId(page)).toBe(id);
+  await expect(page.locator("#ficheNew")).toBeVisible();
+});
+
+test("« Nouveau lien » et « Nouveau lieu » donnent un autre lien", async ({ page }) => {
+  const id1 = await shortId(page);
+  await page.click("#ficheNew"); await page.click("#ficheNew");
+  await expect(page.locator("#ficheOpen")).not.toHaveAttribute("href", new RegExp(id1));
+  const id2 = await shortId(page);
+  expect(id2).not.toBe(id1);
+  await page.click("#venueNew"); await page.click("#venueNew");
+  await page.fill("#addr", "1 rue du Test, 73000 Chambéry");
+  await page.fill("#coords", "45.5666, 5.9212"); await page.locator("#coords").blur();
+  await expect.poll(async () => (await page.getAttribute("#ficheOpen", "href")) || "").toMatch(/#s=T[0-9a-f]{9}$/);
+  await expect.poll(async () => (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1]).not.toBe(id2);
+});
+
+test.describe("ancienne version du Worker (sans clé)", () => {
+  test.use({ legacyWorker: true });
+  test("chaque version de la fiche a son lien court, qui s’ouvre", async ({ page, context }) => {
+    await page.fill("#contactName", "Julien");
+    const id1 = await shortId(page);
+    await page.fill("#contactName", "Marie");
+    await expect.poll(async () => (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1]).not.toBe(id1);
+    const url = await page.getAttribute("#ficheOpen", "href");
+    const team = await openAsTeam(context.browser(), url);
+    await expect(team.locator("#fInfos")).toContainText("Marie");
+    await team.context().close();
+  });
+});
+
+test("fiche équipe : le plan s’ouvre en grand, avec zoom", async ({ page, context }) => {
+  const url = await (async () => { await page.click("#tabMsg"); await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/); return page.getAttribute("#ficheOpen", "href"); })();
+  const team = await openAsTeam(context.browser(), url);
+  await expect(team.locator("#ficheView")).toBeVisible();
+  await expect(team.locator("#sheet")).toHaveCSS("touch-action", "manipulation"); // la page défile au-dessus du petit plan
+  await team.locator("#sheet").click();
+  await expect(team.locator("#planZoom")).toBeVisible();
+  await expect(team.locator("#pzCanvas")).toBeVisible();
+  const w0 = await team.locator("#pzCanvas").evaluate((c) => c.offsetWidth);
+  await team.click("#pzIn");
+  expect(await team.locator("#pzCanvas").evaluate((c) => c.offsetWidth)).toBeGreaterThan(w0 * 1.5);
+  await expect(team.locator("#pzOut")).toBeEnabled();
+  await team.keyboard.press("Escape");
+  await expect(team.locator("#planZoom")).toBeHidden();
+  await team.click("#fZoom");
+  await expect(team.locator("#planZoom")).toBeVisible();
+  await team.click("#pzClose");
+  await expect(team.locator("#planZoom")).toBeHidden();
+  await team.context().close();
 });

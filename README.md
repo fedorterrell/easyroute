@@ -30,7 +30,9 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 
 **Fiche partagée**
 - Le message équipe contient un **lien de fiche** court (case à cocher), du type `fedorterrell.github.io/easyroute/#s=k7Qp2xA9bC`. L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans pour le lieu et chaque point utile, ajout à l’agenda, et le plan avec téléchargement en JPG.
-- La fiche est rangée par un petit service Cloudflare (voir *Liens courts* plus bas) et conservée environ 13 mois. Le logo n’y figure pas.
+- La fiche est rangée par un petit service Cloudflare (voir *Liens courts* plus bas) et conservée environ 13 mois après sa dernière modification. Le logo n’y figure pas.
+- **Le lien reste le même quand vous modifiez la fiche** : l’équipe voit toujours la dernière version (heure de Get-In corrigée, point ajouté…). *Nouveau lien* en crée un autre, par exemple pour une autre date au même lieu ; *Nouveau lieu* et le chargement d’un lieu enregistré en créent un aussi. Seul l’appareil qui a créé le lien peut le modifier (clé secrète gardée avec la session).
+- Sur la fiche équipe, toucher le plan l’ouvre **en grand**, en haute définition, avec zoom.
 - Si ce service est injoignable, Easy Route met à la place un lien long qui contient toute la fiche : il fonctionne sans serveur.
 - *Modifier dans Easy Route* reprend la fiche dans l’éditeur, à la place du travail en cours.
 
@@ -85,9 +87,9 @@ Ces fichiers ne servent qu’aux tests : le site lui-même reste un simple `inde
 Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
 
 - Adresse : `https://easyroute-fiches.piotrskotnicki.workers.dev` (constante `SHORT_API` dans `index.html`).
-- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…"}` ; `GET /f/<id>` renvoie la fiche. Seul le site Easy Route peut créer des fiches ; quiconque a le lien peut la lire.
-- L’identifiant vient d’une empreinte de la fiche : la même fiche donne toujours le même lien, et un identifiant ne se devine pas.
-- Fiches conservées environ 13 mois (`KEEP_DAYS`), puis effacées.
+- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche. Seul le site Easy Route peut créer ou modifier des fiches ; quiconque a le lien peut la lire.
+- Identifiant aléatoire de 10 caractères (impossible à deviner) ; la clé secrète n’est connue que de l’appareil qui a créé la fiche, la base n’en garde qu’une empreinte.
+- Fiches conservées environ 13 mois après leur dernière modification (`KEEP_DAYS`), puis effacées.
 - Mise à jour du service : Cloudflare > Workers & Pages > `easyroute-fiches` > *Edit code*, coller le contenu de `worker/easyroute-fiches.js`, *Deploy*. La base D1 doit rester reliée sous le nom `DB`.
 
 ## Personnaliser

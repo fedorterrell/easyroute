@@ -7,7 +7,7 @@ const QR_LIB = require.resolve("qrcode-generator/qrcode.js");
 // Faux service des liens courts (remplace le Worker Cloudflare pendant les tests)
 const shortStore = new Map();
 const WORKER = /easyroute-fiches\.[a-z0-9-]+\.workers\.dev/;
-async function setupRoutes(context, { workerDown = false } = {}) {
+async function setupRoutes(context, { workerDown = false, legacyWorker = false } = {}) {
   // Pas d'appel aux services extérieurs pendant les tests : tuiles, géocodage, polices Google.
   await context.route(/arcgisonline|nominatim|photon|fonts\.(googleapis|gstatic)/, (r) => r.abort());
   // Bibliothèque QR servie en local (pas de dépendance au CDN)
@@ -15,22 +15,33 @@ async function setupRoutes(context, { workerDown = false } = {}) {
   await context.route(WORKER, async (r) => {
     if (workerDown) return r.abort();
     const req = r.request(), url = new URL(req.url()), cors = { "Access-Control-Allow-Origin": "*" };
+    const reply = (status, body) => r.fulfill({ status, headers: cors, contentType: "application/json", body: JSON.stringify(body) });
+    if (req.method() === "OPTIONS") return r.fulfill({ status: 204, headers: { ...cors, "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
     if (req.method() === "POST" && url.pathname === "/f") {
       const d = JSON.parse(req.postData()).d;
-      const id = "T" + require("crypto").createHash("sha256").update(d).digest("hex").slice(0, 9);
-      shortStore.set(id, d);
-      return r.fulfill({ status: 200, headers: cors, contentType: "application/json", body: JSON.stringify({ id }) });
+      const id = "T" + require("crypto").randomBytes(5).toString("hex").slice(0, 9);
+      if (legacyWorker) { shortStore.set(id, { d }); return reply(200, { id }); } // première version : pas de clé
+      const key = "K" + require("crypto").randomBytes(8).toString("hex");
+      shortStore.set(id, { d, key });
+      return reply(200, { id, key });
     }
     const m = url.pathname.match(/^\/f\/(.+)$/);
-    if (req.method() === "GET" && m && shortStore.has(m[1])) return r.fulfill({ status: 200, headers: cors, contentType: "application/json", body: JSON.stringify({ d: shortStore.get(m[1]) }) });
+    if (req.method() === "PUT" && m && !legacyWorker) {
+      const row = shortStore.get(m[1]), body = JSON.parse(req.postData());
+      if (!row) return reply(404, { error: "introuvable" });
+      if (!row.key || row.key !== body.key) return reply(403, { error: "clé" });
+      row.d = body.d; return reply(200, { id: m[1] });
+    }
+    if (req.method() === "GET" && m && shortStore.has(m[1])) return reply(200, { d: shortStore.get(m[1]).d });
     return r.fulfill({ status: 404, headers: cors, contentType: "application/json", body: '{"error":"introuvable"}' });
   });
 }
 
 const test = base.extend({
   workerDown: [false, { option: true }],
-  page: async ({ page, workerDown }, use) => {
-    await setupRoutes(page.context(), { workerDown });
+  legacyWorker: [false, { option: true }],
+  page: async ({ page, workerDown, legacyWorker }, use) => {
+    await setupRoutes(page.context(), { workerDown, legacyWorker });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/");
@@ -65,4 +76,4 @@ async function openAsTeam(browser, url) {
   return team;
 }
 
-module.exports = { test, expect, fixture, tapSheet, placePoint, message, setupRoutes, openAsTeam };
+module.exports = { test, expect, fixture, tapSheet, placePoint, message, setupRoutes, openAsTeam, shortStore };
