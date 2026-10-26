@@ -59,12 +59,16 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 
 | Fichier | Rôle |
 | --- | --- |
-| `index.html` | Toute l’application : HTML, CSS et JavaScript dans un seul fichier, sans étape de compilation. |
+| `index.html` | La page : structure et contenu (formulaire, onglets, fiche équipe). |
+| `css/easyroute.css` | L’apparence : couleurs, mise en page, version téléphone. |
+| `js/easyroute.js` | Tout le fonctionnement : carte, plan A4, étiquette, message, agenda, fiche partagée, sessions et lieux. |
 | `manifest.webmanifest`, `icons/` | Installation sur l’écran d’accueil (nom, icône, plein écran). |
 | `Archive/` | Ancienne version de l’outil. |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/workflows/` | Tests automatiques (voir ci-dessous). |
 
-Le site est servi par GitHub Pages depuis la branche `main` : chaque fusion sur `main` met le site à jour en une à deux minutes.
+Le site est servi par GitHub Pages depuis la branche `main` : chaque fusion sur `main` met le site à jour en une à deux minutes. Aucune étape de compilation : les fichiers sont servis tels quels.
+
+Quand `css/easyroute.css` ou `js/easyroute.js` change, changez aussi le numéro `?v=…` qui suit leur nom dans `index.html` (par exemple la date du jour). Sinon, un téléphone peut garder l’ancienne version en mémoire quelques minutes.
 
 ## Tests automatiques
 
@@ -80,13 +84,13 @@ npx playwright install chromium
 npm test
 ```
 
-Ces fichiers ne servent qu’aux tests : le site lui-même reste un simple `index.html`, sans installation.
+Ces fichiers ne servent qu’aux tests : le site lui-même n’a besoin d’aucune installation.
 
 ## Liens courts (Cloudflare)
 
 Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
 
-- Adresse : `https://easyroute-fiches.piotrskotnicki.workers.dev` (constante `SHORT_API` dans `index.html`).
+- Adresse : `https://easyroute-fiches.piotrskotnicki.workers.dev` (constante `SHORT_API` dans `js/easyroute.js`).
 - `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche. Seul le site Easy Route peut créer ou modifier des fiches ; quiconque a le lien peut la lire.
 - Identifiant aléatoire de 10 caractères (impossible à deviner) ; la clé secrète n’est connue que de l’appareil qui a créé la fiche, la base n’en garde qu’une empreinte.
 - Fiches conservées environ 13 mois après leur dernière modification (`KEEP_DAYS`), puis effacées.
@@ -94,7 +98,7 @@ Le dossier `worker/` contient le code du service qui range les fiches partagées
 
 ## Personnaliser
 
-- **Ajouter un type de point utile** : ajoutez une ligne dans le tableau `POI_TYPES` de `index.html` (clé, nom, libellé par défaut, emoji, couleurs).
+- **Ajouter un type de point utile** : ajoutez une ligne à la fin du tableau `POI_TYPES` de `js/easyroute.js` (clé, nom, libellé par défaut, emoji, couleurs).
 - **Police de l’étiquette** : Barlow par défaut. Le bouton *Charger une police* accepte un fichier `.ttf`, `.otf` ou `.woff2` ; la police est mémorisée dans le navigateur de l’appareil et n’est jamais envoyée en ligne. *Police par défaut* revient à Barlow. Aucune police commerciale n’est fournie dans ce dépôt.
 
 ## Services externes et crédits
