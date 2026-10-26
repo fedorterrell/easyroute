@@ -137,6 +137,14 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
 .status { font-size: .86rem; min-height: 1.2em; margin: 0; }
 .status.ok { color: var(--ok); } .status.warn { color: var(--warn); }
 .example { font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--warn); }
+.planzoom { position: fixed; inset: 0; z-index: 100; background: #0e1114; display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+.pz-bar { display: flex; gap: 8px; align-items: center; padding: 10px 12px; background: #1a2129; color: #e4e9ee; }
+.pz-bar .btn { min-width: 44px; justify-content: center; }
+.pz-title { flex: 1; font-weight: 600; }
+.pz-scroll { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; display: flex; }
+.pz-scroll canvas { display: block; margin: auto; flex: none; max-width: none; }
+.pz-wait { margin: auto; color: #c9d2db; }
 .fiche { display: grid; gap: 16px; max-width: 900px; width: 100%; margin: 0 auto; }
 .fiche h1 { font-size: 1.7rem; }
 .fiche .sub { margin: 2px 0 0; color: var(--muted); }
@@ -434,7 +442,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <label class="check" for="lkFiche"><input type="checkbox" id="lkFiche" checked> Lien de la fiche complète dans le message</label>
           <button type="button" class="btn sm" id="ficheCopy">Copier le lien de la fiche</button>
           <a class="btn sm" id="ficheOpen" href="#" target="_blank" rel="noopener">Voir la fiche</a>
-          <span class="hint" id="ficheState"></span>
+          <button type="button" class="btn sm" id="ficheNew" hidden>Nouveau lien</button>
+          <span class="hint" id="ficheState" style="flex:1 1 100%"></span>
         </div>
         <div class="toolbar">
           <label class="check" for="lkCal"><input type="checkbox" id="lkCal" checked> Lien « Ajouter à Google Agenda » dans le message</label>
@@ -475,7 +484,10 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     <div class="panel">
       <span class="lbl">Plan</span>
       <div id="fSheetSlot"></div>
-      <div class="actions"><button type="button" class="btn" id="fJpg">Télécharger le plan (JPG)</button></div>
+      <div class="actions">
+        <button type="button" class="btn primary" id="fZoom">Voir le plan en grand</button>
+        <button type="button" class="btn" id="fJpg">Télécharger le plan (JPG)</button>
+      </div>
     </div>
     <p class="status" id="fStatus" role="status"></p>
     <div class="actions">
@@ -483,6 +495,20 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       <span class="hint">Pour préparer votre propre version de cette fiche.</span>
     </div>
   </section>
+</div>
+
+<!-- Plan en grand (fiche équipe) -->
+<div class="planzoom" id="planZoom" hidden role="dialog" aria-modal="true" aria-label="Plan en grand">
+  <div class="pz-bar">
+    <span class="pz-title">Plan</span>
+    <button type="button" class="btn sm" id="pzOut" aria-label="Dézoomer">−</button>
+    <button type="button" class="btn sm" id="pzIn" aria-label="Zoomer">+</button>
+    <button type="button" class="btn sm primary" id="pzClose">Fermer</button>
+  </div>
+  <div class="pz-scroll" id="pzScroll">
+    <p class="pz-wait" id="pzWait">Chargement du plan…</p>
+    <canvas id="pzCanvas" width="2400" height="1697" hidden></canvas>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -1018,7 +1044,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return unproject(w[0], w[1]);
   }
   els.sheet.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || ficheMode) return; // team view: the plan is not editable; a tap opens it in full screen
     const p = canvasPt(e), v = curView();
     const hit = st.tool === "pan" ? pinHit(p) : null;
     if (st.tool === "poi" && st.placing === "main") {
@@ -1820,9 +1846,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       place: st.place, center: st.center, zoom: st.zoom, pois: st.pois, arrows: st.arrows.sat,
       poiLabels: Object.fromEntries(POI_TYPES.map((t) => [t.key, $("poiLabel-" + t.key).value])),
       poiColors: { ...st.poiColors },
+      share: st.share || null, // owned short link { id, key } of this job
     };
   }
   function applyState(d) {
+    st.share = d.share && d.share.id && d.share.key ? { id: d.share.id, key: d.share.key } : null;
     const f = d.fields || {};
     JOB_FIELDS.forEach((id) => { if (!(id in f)) return; const el = $(id); if (el.type === "checkbox") el.checked = !!f[id]; else el.value = f[id]; });
     st.roads = $("roads").checked; st.pin = $("pin").checked;
@@ -1891,7 +1919,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     const title = venueTitle();
     if (!title) { say("Saisissez au moins un nom ou une adresse avant d’enregistrer.", "warn"); return; }
     const existing = venues.find((v) => v.title.toLowerCase() === title.toLowerCase());
-    const rec = { id: existing ? existing.id : Date.now().toString(36), title, savedAt: Date.now(), data: snapshot(), logoData: st.logoData || "" };
+    const data = snapshot(); delete data.share; // a saved venue is reused for other dates: it gets its own new link
+    const rec = { id: existing ? existing.id : Date.now().toString(36), title, savedAt: Date.now(), data, logoData: st.logoData || "" };
     venues = existing ? venues.map((v) => (v.id === rec.id ? rec : v)) : venues.concat(rec);
     try { await storeVenues(); fillVenueSelect(rec.id); say((existing ? "Lieu mis à jour : " : "Lieu enregistré : ") + title + ".", "ok"); }
     catch (_) { say("Impossible d’enregistrer sur cet appareil (navigation privée ?).", "warn"); }
@@ -1997,8 +2026,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   // Short links: the fiche is stored by our Cloudflare Worker, the link only carries its id (…/#s=k7Qp2xA9bC).
   // If the Worker can't be reached, the long self-contained link (…/#fiche=…) is used instead.
   const SHORT_API = "https://easyroute-fiches.piotrskotnicki.workers.dev";
-  const shortIds = new Map(); // packed fiche -> id
-  let currentPacked = "", shortTimer = 0, shortFailed = false;
+  const shortIds = new Map(); // packed fiche -> id (links that can't be updated: older Worker without keys)
+  let currentPacked = "", syncedPacked = "", shortTimer = 0, shortFailed = false;
+  st.share = null; // { id, key }: the link of this job, kept with the session, updated in place
   const canShorten = () => location.hostname === "fedorterrell.github.io" || location.hostname === "localhost";
   function setFicheUrl(url, state) {
     $("ficheOpen").href = url || "#";
@@ -2006,19 +2036,45 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     $("ficheState").textContent = state || "";
     if (url !== ficheUrl) { ficheUrl = url; updateMessage(); }
   }
-  async function shorten(packed) {
+  const shortUrl = (id) => siteBase() + "#s=" + id;
+  const SYNCED = "Fiche en ligne à jour. Si vous avez déjà envoyé ce lien, l’équipe voit cette version.";
+  // Create the job's link, or update it in place (same link) once it exists
+  async function shorten(packed, note) {
+    const offline = () => {
+      shortFailed = true;
+      if (packed !== currentPacked) return;
+      if (st.share) setFicheUrl(siteBase() + "#fiche=" + packed, "Pas de réseau : la fiche en ligne n’est pas à jour. Le lien ci-dessus (long) contient la version actuelle.");
+      else $("ficheState").textContent = "Service des liens courts injoignable : le lien long fonctionne aussi.";
+    };
     try {
+      if (st.share) {
+        const r = await fetch(SHORT_API + "/f/" + st.share.id, { method: "PUT", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed, key: st.share.key }) });
+        if (r.ok) {
+          shortFailed = false; syncedPacked = packed;
+          if (packed === currentPacked) setFicheUrl(shortUrl(st.share.id), SYNCED);
+          return;
+        }
+        if (r.status !== 403 && r.status !== 404) return offline();
+        st.share = null; // link no longer ours (expired, or older Worker): make a new one
+        note = "Nouveau lien créé : l’ancien ne pouvait plus être mis à jour.";
+      }
       const r = await fetch(SHORT_API + "/f", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed }) });
       if (!r.ok) throw new Error(r.status);
-      const { id } = await r.json();
+      const { id, key } = await r.json();
       if (!/^[0-9A-Za-z]{6,16}$/.test(id || "")) throw new Error("id");
-      shortIds.set(packed, id); shortFailed = false;
-      if (packed === currentPacked) setFicheUrl(siteBase() + "#s=" + id, "Lien court prêt.");
-    } catch (_) {
-      shortFailed = true;
-      if (packed === currentPacked) $("ficheState").textContent = "Service des liens courts injoignable : le lien long fonctionne aussi.";
-    }
+      shortFailed = false;
+      if (key) { st.share = { id, key }; syncedPacked = packed; autosave(); }
+      else shortIds.set(packed, id); // older Worker: one link per version
+      if (packed === currentPacked) setFicheUrl(shortUrl(id), note || (key ? "Lien court prêt. Il reste le même si vous modifiez la fiche." : "Lien court prêt."));
+      syncFicheButtons();
+    } catch (_) { offline(); }
   }
+  function syncFicheButtons() { $("ficheNew").hidden = !st.share; }
+  confirmClick($("ficheNew"), "Créer un nouveau lien ?", () => {
+    st.share = null; syncedPacked = ""; syncFicheButtons(); autosave();
+    say("Un nouveau lien va être créé. L’ancien garde la version déjà envoyée.", "ok");
+    refreshFiche();
+  });
   function refreshFiche() {
     if (ficheMode) return;
     clearTimeout(ficheTimer);
@@ -2026,10 +2082,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
       if (!st.place && !els.addr.value.trim()) { currentPacked = ""; setFicheUrl("", ""); return; }
       const packed = await packFiche(ficheData());
       currentPacked = packed;
-      const id = shortIds.get(packed);
-      if (id) { setFicheUrl(siteBase() + "#s=" + id, "Lien court prêt."); return; }
-      setFicheUrl(siteBase() + "#fiche=" + packed, canShorten() ? "Création du lien court…" : "");
-      if (canShorten()) { clearTimeout(shortTimer); shortTimer = setTimeout(() => shorten(packed), shortFailed ? 4000 : 1200); }
+      syncFicheButtons();
+      if (!canShorten()) { setFicheUrl(siteBase() + "#fiche=" + packed, ""); return; }
+      if (st.share) {
+        if (packed === syncedPacked) { setFicheUrl(shortUrl(st.share.id), SYNCED); return; }
+        if (!shortFailed) setFicheUrl(shortUrl(st.share.id), "Mise à jour de la fiche en ligne…");
+      } else {
+        const id = shortIds.get(packed);
+        if (id) { setFicheUrl(shortUrl(id), "Lien court prêt."); return; }
+        setFicheUrl(siteBase() + "#fiche=" + packed, "Création du lien court…");
+      }
+      clearTimeout(shortTimer); shortTimer = setTimeout(() => shorten(packed), shortFailed ? 4000 : 1200);
     }, 300);
   }
   $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); });
@@ -2102,6 +2165,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     document.querySelector(".wrap > .grid").hidden = on;
     $("ficheView").hidden = !on;
     const sheetBox = $("sheetBox");
+    els.sheet.style.touchAction = on ? "manipulation" : "";
+    els.sheet.style.cursor = on ? "zoom-in" : "";
     if (on) $("fSheetSlot").appendChild(sheetBox);
     else $("paneSheet").insertBefore(sheetBox, document.querySelector("#paneSheet .meta"));
     schedule();
@@ -2129,6 +2194,42 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     }
   }
   $("fJpg").addEventListener("click", () => saveSheet("jpg"));
+
+  // Big plan: full screen, high resolution, zoom buttons (pinch-zoom also works on phones)
+  const PZ_LEVELS = [1, 1.6, 2.5, 4];
+  let pzLevel = 0, pzRendered = false;
+  function pzFit() {
+    const box = $("pzScroll"), c = $("pzCanvas");
+    const fit = Math.min(box.clientWidth, box.clientHeight * c.width / c.height);
+    const w = Math.round(fit * PZ_LEVELS[pzLevel]);
+    // keep the visible centre in place while zooming
+    const cx = (box.scrollLeft + box.clientWidth / 2) / (c.offsetWidth || 1), cy = (box.scrollTop + box.clientHeight / 2) / (c.offsetHeight || 1);
+    c.style.width = w + "px"; c.style.height = Math.round(w * c.height / c.width) + "px";
+    box.scrollLeft = cx * w - box.clientWidth / 2; box.scrollTop = cy * c.offsetHeight - box.clientHeight / 2;
+    $("pzOut").disabled = pzLevel === 0; $("pzIn").disabled = pzLevel === PZ_LEVELS.length - 1;
+  }
+  async function openZoom() {
+    $("planZoom").hidden = false; document.body.style.overflow = "hidden";
+    pzLevel = 0;
+    if (!pzRendered) {
+      $("pzWait").hidden = false; $("pzCanvas").hidden = true;
+      const c = $("pzCanvas");
+      await drawSheet(c.getContext("2d"), c.width, c.height, true);
+      pzRendered = true;
+      $("pzWait").hidden = true; c.hidden = false;
+    }
+    pzFit();
+    $("pzClose").focus();
+  }
+  function closeZoom() { $("planZoom").hidden = true; document.body.style.overflow = ""; $("fZoom").focus(); }
+  $("fZoom").addEventListener("click", openZoom);
+  els.sheet.addEventListener("click", () => { if (ficheMode) openZoom(); });
+  $("pzClose").addEventListener("click", closeZoom);
+  $("pzIn").addEventListener("click", () => { pzLevel = Math.min(PZ_LEVELS.length - 1, pzLevel + 1); pzFit(); });
+  $("pzOut").addEventListener("click", () => { pzLevel = Math.max(0, pzLevel - 1); pzFit(); });
+  $("pzCanvas").addEventListener("dblclick", () => { pzLevel = (pzLevel + 1) % PZ_LEVELS.length; pzFit(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("planZoom").hidden) closeZoom(); });
+  window.addEventListener("resize", () => { if (!$("planZoom").hidden && pzRendered) pzFit(); });
   confirmClick($("fEdit"), "Remplacer mon travail en cours ?", () => {
     showFiche(false);
     history.replaceState(null, "", location.pathname + location.search);
