@@ -423,6 +423,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
           <label class="check" for="lkFiche"><input type="checkbox" id="lkFiche" checked> Lien de la fiche complète dans le message</label>
           <button type="button" class="btn sm" id="ficheCopy">Copier le lien de la fiche</button>
           <a class="btn sm" id="ficheOpen" href="#" target="_blank" rel="noopener">Voir la fiche</a>
+          <span class="hint" id="ficheState"></span>
         </div>
         <div class="toolbar">
           <label class="check" for="lkCal"><input type="checkbox" id="lkCal" checked> Lien « Ajouter à Google Agenda » dans le message</label>
@@ -1873,14 +1874,42 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     return JSON.parse(new TextDecoder().decode(bytes));
   }
   const siteBase = () => (/^https?:$/.test(location.protocol) && !/claude/.test(location.hostname) ? location.origin + location.pathname : SITE_URL);
+  // Short links: the fiche is stored by our Cloudflare Worker, the link only carries its id (…/#s=k7Qp2xA9bC).
+  // If the Worker can't be reached, the long self-contained link (…/#fiche=…) is used instead.
+  const SHORT_API = "https://easyroute-fiches.piotrskotnicki.workers.dev";
+  const shortIds = new Map(); // packed fiche -> id
+  let currentPacked = "", shortTimer = 0, shortFailed = false;
+  const canShorten = () => location.hostname === "fedorterrell.github.io" || location.hostname === "localhost";
+  function setFicheUrl(url, state) {
+    $("ficheOpen").href = url || "#";
+    $("ficheCopy").disabled = !url;
+    $("ficheState").textContent = state || "";
+    if (url !== ficheUrl) { ficheUrl = url; updateMessage(); }
+  }
+  async function shorten(packed) {
+    try {
+      const r = await fetch(SHORT_API + "/f", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ d: packed }) });
+      if (!r.ok) throw new Error(r.status);
+      const { id } = await r.json();
+      if (!/^[0-9A-Za-z]{6,16}$/.test(id || "")) throw new Error("id");
+      shortIds.set(packed, id); shortFailed = false;
+      if (packed === currentPacked) setFicheUrl(siteBase() + "#s=" + id, "Lien court prêt.");
+    } catch (_) {
+      shortFailed = true;
+      if (packed === currentPacked) $("ficheState").textContent = "Service des liens courts injoignable : le lien long fonctionne aussi.";
+    }
+  }
   function refreshFiche() {
     if (ficheMode) return;
     clearTimeout(ficheTimer);
     ficheTimer = setTimeout(async () => {
-      const url = st.place || els.addr.value.trim() ? siteBase() + "#fiche=" + await packFiche(ficheData()) : "";
-      $("ficheOpen").href = url || "#";
-      $("ficheCopy").disabled = !url;
-      if (url !== ficheUrl) { ficheUrl = url; updateMessage(); }
+      if (!st.place && !els.addr.value.trim()) { currentPacked = ""; setFicheUrl("", ""); return; }
+      const packed = await packFiche(ficheData());
+      currentPacked = packed;
+      const id = shortIds.get(packed);
+      if (id) { setFicheUrl(siteBase() + "#s=" + id, "Lien court prêt."); return; }
+      setFicheUrl(siteBase() + "#fiche=" + packed, canShorten() ? "Création du lien court…" : "");
+      if (canShorten()) { clearTimeout(shortTimer); shortTimer = setTimeout(() => shorten(packed), shortFailed ? 4000 : 1200); }
     }, 300);
   }
   $("lkFiche").addEventListener("change", (e) => { try { localStorage.setItem("easyroute.ficheLink", e.target.checked ? "1" : "0"); } catch (_) {} updateMessage(); });
@@ -1992,20 +2021,30 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
   // ---------- Start ----------
   const start = parseCoords(els.coords.value);
   if (start) { st.place = start; st.center = { ...start }; }
-  const ficheHash = location.hash.startsWith("#fiche=") ? location.hash.slice(7) : "";
+  const ficheMatch = location.hash.match(/^#(fiche|s)=(.+)$/);
+  const ficheHash = ficheMatch ? ficheMatch[2] : "";
   if (ficheHash) {
     // Team view: never touch this device's saved session
-    openFiche(ficheHash).then((ok) => {
-      if (ok) return;
+    (async () => {
+      let packed = ficheHash, problem = "Ce lien de fiche est incomplet ou abîmé. Demandez un nouveau lien à l’expéditeur.";
+      if (ficheMatch[1] === "s") {
+        packed = "";
+        try {
+          const r = await fetch(SHORT_API + "/f/" + encodeURIComponent(ficheHash));
+          if (r.ok) packed = (await r.json()).d || "";
+          else if (r.status === 404) problem = "Cette fiche est introuvable ou a expiré. Demandez un nouveau lien à l’expéditeur.";
+        } catch (_) { problem = "Impossible de charger la fiche pour l’instant (pas de réseau ?). Réessayez dans un moment."; }
+      }
+      if (packed && await openFiche(packed)) return;
       restoreSession(); sessionReady = true;
-      say("Ce lien de fiche est incomplet ou abîmé. Demandez un nouveau lien à l’expéditeur.", "warn");
-    });
+      say(problem, "warn");
+    })();
   } else {
     restoreSession();
     sessionReady = true;
   }
   // A fiche link opened in a tab where Easy Route is already open: reload to show it
-  window.addEventListener("hashchange", () => { if (location.hash.startsWith("#fiche=")) location.reload(); });
+  window.addEventListener("hashchange", () => { if (/^#(fiche|s)=/.test(location.hash)) location.reload(); });
   function restoreSession() {
     try {
       const saved = JSON.parse(localStorage.getItem("easyroute.session") || "null");
