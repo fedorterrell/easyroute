@@ -96,3 +96,38 @@ test.describe("service des liens courts injoignable", () => {
     expect(await message(page)).toContain("https://calendar.google.com/calendar/render?action=TEMPLATE");
   });
 });
+
+test("le message contient aussi un lien .ics court, qui suit les modifications", async ({ page }) => {
+  await fillInfos(page);
+  await page.click("#tabMsg");
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
+  const id = (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1];
+  const icsUrl = `https://easyroute-fiches.piotrskotnicki.workers.dev/ics/${id}`;
+  await expect.poll(() => message(page)).toContain("📆 Ajouter au calendrier (iPhone, Mac, Outlook) :\n" + icsUrl);
+  const get = () => page.evaluate((u) => fetch(u).then((r) => r.text()), icsUrl);
+  let ics = await get();
+  expect(ics).toContain("DTSTART:20261024T063000Z");
+  expect(ics).toContain(`UID:${id}@easyroute`);
+  expect(ics).toContain(`#s=${id}`); // la description renvoie vers la fiche courte
+  // Changement d'heure après l'envoi : le même lien .ics donne la nouvelle heure
+  await page.fill("#callTime", "10:00");
+  await page.dispatchEvent("#callTime", "change");
+  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour/);
+  await expect.poll(get).toContain("DTSTART:20261024T080000Z");
+  // La case « liens agenda » retire les deux liens
+  await page.uncheck("#lkCal");
+  const msg = await message(page);
+  expect(msg).not.toContain("/ics/");
+  expect(msg).not.toContain("Google Agenda");
+});
+
+test.describe("ancienne version du Worker (sans .ics)", () => {
+  test.use({ legacyWorker: true });
+  test("pas de lien .ics dans le message", async ({ page }) => {
+    await fillInfos(page);
+    await page.click("#tabMsg");
+    await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
+    await page.waitForTimeout(500);
+    expect(await message(page)).not.toContain("/ics/");
+  });
+});

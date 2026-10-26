@@ -22,17 +22,20 @@ async function setupRoutes(context, { workerDown = false, legacyWorker = false }
       const id = "T" + require("crypto").randomBytes(5).toString("hex").slice(0, 9);
       if (legacyWorker) { shortStore.set(id, { d }); return reply(200, { id }); } // première version : pas de clé
       const key = "K" + require("crypto").randomBytes(8).toString("hex");
-      shortStore.set(id, { d, key });
-      return reply(200, { id, key });
+      shortStore.set(id, { d, key, ics: JSON.parse(req.postData()).ics || null });
+      return reply(200, { id, key, ics: true });
     }
     const m = url.pathname.match(/^\/f\/(.+)$/);
     if (req.method() === "PUT" && m && !legacyWorker) {
       const row = shortStore.get(m[1]), body = JSON.parse(req.postData());
       if (!row) return reply(404, { error: "introuvable" });
       if (!row.key || row.key !== body.key) return reply(403, { error: "clé" });
-      row.d = body.d; return reply(200, { id: m[1] });
+      row.d = body.d; row.ics = body.ics || null; return reply(200, { id: m[1], ics: true });
     }
     if (req.method() === "GET" && m && shortStore.has(m[1])) return reply(200, { d: shortStore.get(m[1]).d });
+    const mi = url.pathname.match(/^\/ics\/(.+)$/);
+    if (req.method() === "GET" && mi && shortStore.has(mi[1]) && shortStore.get(mi[1]).ics)
+      return r.fulfill({ status: 200, headers: cors, contentType: "text/calendar; charset=utf-8", body: shortStore.get(mi[1]).ics.replace(/\r\n[ \t]/g, "").replace(/__EASYROUTE_ID__/g, mi[1]) });
     return r.fulfill({ status: 404, headers: cors, contentType: "application/json", body: '{"error":"introuvable"}' });
   });
 }
