@@ -29,8 +29,9 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
 **Fiche partagée**
-- Le message équipe contient un **lien de fiche** (case à cocher). L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans pour le lieu et chaque point utile, ajout à l’agenda, et le plan avec téléchargement en JPG.
-- Toute la fiche est contenue dans le lien (compressée) : rien n’est stocké sur un serveur, et le lien reste valable tant que le site existe. Le logo n’y figure pas.
+- Le message équipe contient un **lien de fiche** court (case à cocher), du type `fedorterrell.github.io/easyroute/#s=k7Qp2xA9bC`. L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans pour le lieu et chaque point utile, ajout à l’agenda, et le plan avec téléchargement en JPG.
+- La fiche est rangée par un petit service Cloudflare (voir *Liens courts* plus bas) et conservée environ 13 mois. Le logo n’y figure pas.
+- Si ce service est injoignable, Easy Route met à la place un lien long qui contient toute la fiche : il fonctionne sans serveur.
 - *Modifier dans Easy Route* reprend la fiche dans l’éditeur, à la place du travail en cours.
 
 **Sessions et lieux enregistrés**
@@ -78,6 +79,16 @@ npm test
 ```
 
 Ces fichiers ne servent qu’aux tests : le site lui-même reste un simple `index.html`, sans installation.
+
+## Liens courts (Cloudflare)
+
+Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
+
+- Adresse : `https://easyroute-fiches.piotrskotnicki.workers.dev` (constante `SHORT_API` dans `index.html`).
+- `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…"}` ; `GET /f/<id>` renvoie la fiche. Seul le site Easy Route peut créer des fiches ; quiconque a le lien peut la lire.
+- L’identifiant vient d’une empreinte de la fiche : la même fiche donne toujours le même lien, et un identifiant ne se devine pas.
+- Fiches conservées environ 13 mois (`KEEP_DAYS`), puis effacées.
+- Mise à jour du service : Cloudflare > Workers & Pages > `easyroute-fiches` > *Edit code*, coller le contenu de `worker/easyroute-fiches.js`, *Deploy*. La base D1 doit rester reliée sous le nom `DB`.
 
 ## Personnaliser
 

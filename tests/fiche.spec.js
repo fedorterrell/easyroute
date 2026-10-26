@@ -1,8 +1,9 @@
-const { test, expect, placePoint, message } = require("./helpers");
+const { test, expect, placePoint, message, openAsTeam } = require("./helpers");
 
 async function ficheLink(page) {
   await page.click("#tabMsg");
-  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#fiche=1/);
+  await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=T[0-9a-f]{9}$/);
+  await expect(page.locator("#ficheState")).toHaveText("Lien court prêt.");
   return page.getAttribute("#ficheOpen", "href");
 }
 
@@ -15,14 +16,11 @@ test("le lien de fiche figure dans le message et ouvre la fiche en lecture seule
   await page.fill("#poiLabel-loges", "Loges — porte B");
   await placePoint(page, "loges", 0.6, 0.6);
   const url = await ficheLink(page);
-  expect(url.length).toBeLessThan(1500);
+  expect(url.length).toBeLessThan(60);
   expect(await message(page)).toContain("🔗 Fiche complète (plan, accès, itinéraires) :\n" + url);
 
   // Un équipier ouvre le lien sur son propre téléphone (autre navigateur, rien d'enregistré)
-  const team = await context.browser().newPage();
-  await team.context().route(/arcgisonline|nominatim|photon|fonts\.(googleapis|gstatic)/, (r) => r.abort());
-  await team.context().route(/qrcode\.min\.js/, (r) => r.fulfill({ path: require.resolve("qrcode-generator/qrcode.js"), contentType: "text/javascript" }));
-  await team.goto(url.replace(/^https?:\/\/[^/]+\/(easyroute\/)?/, "/"));
+  const team = await openAsTeam(context.browser(), url);
   await expect(team.locator("#ficheView")).toBeVisible();
   await expect(team.locator(".wrap > .grid")).toBeHidden();
   await expect(team.locator("#fTitle")).toHaveText("Concert Test");
@@ -56,4 +54,26 @@ test("on peut retirer le lien de fiche du message", async ({ page }) => {
   await ficheLink(page);
   await page.uncheck("#lkFiche");
   expect(await message(page)).not.toContain("Fiche complète");
+});
+
+test("lien court inconnu ou expiré : message clair", async ({ page }) => {
+  await page.goto("/#s=Tinconnu00");
+  await expect(page.locator("#status")).toHaveText(/introuvable ou a expiré/);
+  await expect(page.locator("#ficheView")).toBeHidden();
+});
+
+test.describe("service des liens courts injoignable", () => {
+  test.use({ workerDown: true });
+  test("le message garde le lien long, qui ouvre la fiche", async ({ page, context }) => {
+    await page.fill("#contactName", "Julien");
+    await page.click("#tabMsg");
+    await expect(page.locator("#ficheState")).toHaveText(/injoignable/);
+    const url = await page.getAttribute("#ficheOpen", "href");
+    expect(url).toMatch(/#fiche=1/);
+    expect(await message(page)).toContain(url);
+    const team = await openAsTeam(context.browser(), url);
+    await expect(team.locator("#ficheView")).toBeVisible();
+    await expect(team.locator("#fInfos")).toContainText("Julien");
+    await team.context().close();
+  });
 });
