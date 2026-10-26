@@ -1406,7 +1406,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     syncLinkGrid();
     const text = messageText();
     $("msg").value = text;
-    $("msgWa").href = "https://wa.me/?text=" + encodeURIComponent(text);
+    // api.whatsapp.com rather than wa.me: the wa.me redirect is known to mangle some emoji
+    $("msgWa").href = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
     const call = callText();
     const event = $("eventName").value.trim(), place = els.name.value.trim() || els.addr.value.trim().split(/\n/)[0];
     const subject = (event ? event + " — " + (place || "lieu") : "Adresse : " + (place || "lieu de rendez-vous")) + (call ? " — " + call : "");
