@@ -30,7 +30,9 @@ test("le lien de fiche figure dans le message et ouvre la fiche en lecture seule
   await expect(team.locator("#fRoutes .froute")).toHaveCount(2);
   await expect(team.locator("#fRoutes .froute").nth(1)).toContainText("Loges — porte B");
   await expect(team.locator("#fRoutes a", { hasText: "Waze" }).first()).toHaveAttribute("href", /^https:\/\/waze\.com\/ul\?ll=46\.18/);
-  await expect(team.locator("#fCal a")).toHaveAttribute("href", /calendar\.google\.com/);
+  await expect(team.locator("#fCal a").first()).toHaveAttribute("href", /calendar\.google\.com/);
+  // Le bouton .ics pointe sur le fichier servi par le Worker (ouvre Calendrier, pas la fenêtre de partage)
+  await expect(team.locator("#fCal a", { hasText: ".ics" })).toHaveAttribute("href", "https://easyroute-fiches.piotrskotnicki.workers.dev/ics/" + url.split("#s=")[1]);
   await expect(team.locator("#fSheetSlot #sheet")).toBeVisible();
   // La fiche n'écrase pas la session de l'appareil
   expect(await team.evaluate(() => localStorage.getItem("easyroute.session"))).toBeNull();
@@ -179,4 +181,21 @@ test("la fiche ne montre que les liens d'itinéraire choisis pour le message", a
   await expect(team2.locator("#ficheView")).toBeVisible();
   await expect(team2.locator("#fRoutes")).toBeHidden();
   await team2.close();
+});
+
+test.describe("fiche créée avec l'ancien Worker (sans .ics en ligne)", () => {
+  test.use({ legacyWorker: true });
+  test("le bouton .ics de la fiche télécharge le fichier", async ({ page, context }) => {
+    await page.fill("#callDate", "2026-10-24");
+    await page.fill("#callTime", "08:30");
+    const url = await ficheLink(page);
+    const team = await openAsTeam(context.browser(), url);
+    const btn = team.locator("#fCal a", { hasText: ".ics" });
+    await team.waitForTimeout(500);
+    await expect(btn).toHaveAttribute("href", "#");
+    const [download] = await Promise.all([team.waitForEvent("download"), btn.click()]);
+    const ics = Buffer.concat(await (await download.createReadStream()).toArray()).toString();
+    expect(ics).toContain("DTSTART:20261024T063000Z");
+    await team.close();
+  });
 });

@@ -1151,7 +1151,8 @@
     const name = "get-in-" + current.base + ".ics";
     const blob = new Blob([icsText(ev)], { type: "text/calendar" });
     const file = new File([blob], name, { type: "text/calendar" });
-    if (standalone && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Share sheet on phones only: on a Mac it would open the share window instead of Calendar
+    if (standalone && matchMedia("(pointer: coarse)").matches && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: ev.title }); say("Événement partagé.", "ok"); return; }
       catch (e) { if (e && e.name === "AbortError") { say("Partage annulé."); return; } }
     }
@@ -1657,8 +1658,15 @@
     const cal = calEvent(), calBox = $("fCal"); calBox.textContent = "";
     if (cal) {
       calBox.appendChild(el("a", { class: "btn", href: googleCalUrl(cal), target: "_blank", rel: "noopener" }, "Ajouter à Google Agenda"));
-      const b = el("button", { type: "button", class: "btn" }, "Ajouter au calendrier (.ics)");
-      b.addEventListener("click", () => icsDownload()); calBox.appendChild(b);
+      const b = el("a", { class: "btn", href: "#" }, "Ajouter au calendrier (.ics)");
+      b.addEventListener("click", (e) => { if (b.getAttribute("href") === "#") { e.preventDefault(); icsDownload(); } });
+      calBox.appendChild(b);
+      // Short fiche: link straight to the .ics served by the Worker (opens Calendar on iPhone and Mac)
+      const m = location.hash.match(/^#s=([0-9A-Za-z]{6,16})$/);
+      if (m) {
+        const url = SHORT_API + "/ics/" + m[1];
+        fetch(url, { cache: "no-store" }).then((r) => { if (r.ok) b.href = url; }).catch(() => {});
+      }
     }
     $("fInfosPanel").hidden = !infoRows().length && !cal;
     // Routes: the place, then each useful point
