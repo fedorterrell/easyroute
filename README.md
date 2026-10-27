@@ -29,7 +29,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
 **Fiche partagée**
-- Le message équipe contient un **lien de fiche** court (case à cocher), du type `fedorterrell.github.io/easyroute/#s=k7Qp2xA9bC`. L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans pour le lieu et chaque point utile, ajout à l’agenda, et le plan avec téléchargement en JPG.
+- Le message équipe contient un **lien de fiche** court (case à cocher), du type `fedorterrell.github.io/easyroute/#s=k7Qp2xA9bC`. L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans et coordonnées GPS pour le lieu et chaque point utile (les mêmes liens que ceux cochés pour le message), ajout à l’agenda, et le plan avec téléchargement en JPG.
 - La fiche est rangée par un petit service Cloudflare (voir *Liens courts* plus bas) et conservée environ 13 mois après sa dernière modification. Le logo n’y figure pas.
 - **Le lien reste le même quand vous modifiez la fiche** : l’équipe voit toujours la dernière version (heure de Get-In corrigée, point ajouté…). *Nouveau lien* en crée un autre, par exemple pour une autre date au même lieu ; *Nouveau lieu* et le chargement d’un lieu enregistré en créent un aussi. Seul l’appareil qui a créé le lien peut le modifier (clé secrète gardée avec la session).
 - Sur la fiche équipe, toucher le plan l’ouvre **en grand**, en haute définition, avec zoom.

@@ -148,3 +148,35 @@ test("fiche équipe : le plan s’ouvre en grand, avec zoom", async ({ page, con
   await expect(team.locator("#planZoom")).toBeHidden();
   await team.context().close();
 });
+
+test("la fiche ne montre que les liens d'itinéraire choisis pour le message", async ({ page, context }) => {
+  await placePoint(page, "loges", 0.6, 0.6);
+  await page.click("#tabMsg");
+  // Lieu : aucun lien ; loges : Google Maps et GPS seulement
+  for (const c of ["g", "w", "a"]) await page.locator(`#lk-main-${c}`).setChecked(false);
+  await page.locator("#lk-loges-w").setChecked(false);
+  await page.locator("#lk-loges-gps").setChecked(true);
+  const url = await ficheLink(page);
+  await expect(page.locator("#ficheState")).toHaveText(/Fiche en ligne à jour|Lien court prêt/);
+  const msg = await message(page);
+  expect(msg).not.toContain("Itinéraire :");
+  expect(msg).not.toContain("waze.com");
+
+  const team = await openAsTeam(context.browser(), url);
+  await expect(team.locator("#fRoutes .froute")).toHaveCount(1);
+  const row = team.locator("#fRoutes .froute");
+  await expect(row).toContainText("Loges");
+  await expect(row.locator("a")).toHaveText(["Google Maps"]);
+  await expect(row.locator(".gps")).toContainText("GPS : 46.");
+  await team.close();
+
+  // Plus aucun lien : la rubrique Itinéraires disparaît de la fiche (même lien, mis à jour)
+  const stored = () => page.evaluate((id) => fetch("https://easyroute-fiches.piotrskotnicki.workers.dev/f/" + id).then((r) => r.text()), url.split("#s=")[1]);
+  const before = await stored();
+  for (const c of ["g", "gps"]) await page.locator(`#lk-loges-${c}`).setChecked(false);
+  await expect.poll(stored).not.toBe(before);
+  const team2 = await openAsTeam(context.browser(), url);
+  await expect(team2.locator("#ficheView")).toBeVisible();
+  await expect(team2.locator("#fRoutes")).toBeHidden();
+  await team2.close();
+});

@@ -1491,7 +1491,7 @@
 
   // ---------- Shared fiche: the whole job packed into the link (…/#fiche=…), no server ----------
   const SITE_URL = "https://fedorterrell.github.io/easyroute/";
-  let ficheUrl = "", ficheTimer = 0, ficheMode = false;
+  let ficheUrl = "", ficheTimer = 0, ficheMode = false, ficheLinks = null;
   const b64url = (bytes) => {
     let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -1512,8 +1512,12 @@
     const labels = {}; POI_TYPES.forEach((t) => { const l = snap.poiLabels[t.key]; if (l && l !== t.label && st.pois[t.key]) labels[t.key] = l; });
     const colors = {}; POI_TYPES.forEach((t) => { if (st.pois[t.key] && poiColor(t) !== t.fill) colors[t.key] = poiColor(t); });
     const pois = {}; POI_TYPES.forEach((t) => { if (st.pois[t.key]) pois[t.key] = rPt(st.pois[t.key]); });
+    // Route links chosen in the message grid, also used by the team view: key -> "g,w,a,gps"
+    const links = {}; ["main", ...POI_TYPES.filter((t) => st.pois[t.key]).map((t) => t.key)].forEach((k) => {
+      links[k] = LINK_COLS.filter((c) => linkSel[k][c[0]]).map((c) => c[0]).join(",");
+    });
     return { v: 1, fields: f, app, layout, place: rPt(st.place), center: rPt(st.center), zoom: st.zoom, pois,
-      poiLabels: labels, poiColors: colors, arrows: st.arrows.sat.map((a) => a.map(([x, y]) => [r7(x), r7(y)])) };
+      poiLabels: labels, poiColors: colors, links, arrows: st.arrows.sat.map((a) => a.map(([x, y]) => [r7(x), r7(y)])) };
   }
   async function packFiche(obj) {
     const bytes = new TextEncoder().encode(JSON.stringify(obj));
@@ -1659,18 +1663,27 @@
     $("fInfosPanel").hidden = !infoRows().length && !cal;
     // Routes: the place, then each useful point
     const box = $("fRoutes"); box.textContent = "";
-    const dests = [{ title: name || addr || "Lieu", p: st.place, color: "#ea4335", search: (name ? name + ", " : "") + addr }]
-      .concat(placedPois().map((t) => ({ title: poiLabel(t), p: st.pois[t.key], color: poiColor(t), search: "" })));
+    const dests = [{ key: "main", title: name || addr || "Lieu", p: st.place, color: "#ea4335", search: (name ? name + ", " : "") + addr }]
+      .concat(placedPois().map((t) => ({ key: t.key, title: poiLabel(t), p: st.pois[t.key], color: poiColor(t), search: "" })));
     dests.forEach((d) => {
+      // Same links as in the message (fiches made before this choice existed show them all)
+      const chosen = ficheLinks && typeof ficheLinks[d.key] === "string" ? ficheLinks[d.key].split(",") : ["g", "w", "a", "gps"];
+      const u = routeUrls(d.p, d.title, d.search);
+      const links = [["g", "Google Maps", u.google], ["w", "Waze", u.waze], ["a", "Plans", u.apple]].filter(([k]) => chosen.includes(k));
+      const gps = d.p && chosen.includes("gps");
+      if (!links.length && !gps) return;
       const row = el("div", { class: "froute" }), head = el("div", { class: "name" });
       const dot = el("span", { class: "poidot" }); dot.style.background = d.color;
       head.append(dot, d.title); row.appendChild(head);
-      const u = routeUrls(d.p, d.title, d.search), btns = el("div", { class: "routebtns" });
-      [["Google Maps", u.google], ["Waze", u.waze], ["Plans", u.apple]].forEach(([lbl, href]) => btns.appendChild(el("a", { class: "btn", href, target: "_blank", rel: "noopener" }, lbl)));
-      row.appendChild(btns);
-      if (d.p) row.appendChild(el("span", { class: "gps" }, "GPS : " + d.p.lat.toFixed(6) + ", " + d.p.lng.toFixed(6)));
+      if (links.length) {
+        const btns = el("div", { class: "routebtns" });
+        links.forEach(([, lbl, href]) => btns.appendChild(el("a", { class: "btn", href, target: "_blank", rel: "noopener" }, lbl)));
+        row.appendChild(btns);
+      }
+      if (gps) row.appendChild(el("span", { class: "gps" }, "GPS : " + d.p.lat.toFixed(6) + ", " + d.p.lng.toFixed(6)));
       box.appendChild(row);
     });
+    box.parentElement.hidden = !box.children.length;
   }
   function showFiche(on) {
     ficheMode = on;
@@ -1698,6 +1711,7 @@
           : e.tagName === "SELECT" ? ([...e.options].find((o) => o.defaultSelected) || e.options[0]).value : "";
       });
       applyState({ ...d, fields });
+      ficheLinks = d.links && typeof d.links === "object" ? d.links : null;
       buildFicheView();
       showFiche(true);
       return true;
