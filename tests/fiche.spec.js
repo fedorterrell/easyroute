@@ -32,7 +32,7 @@ test("le lien de fiche figure dans le message et ouvre la fiche en lecture seule
   await expect(team.locator("#fRoutes a", { hasText: "Waze" }).first()).toHaveAttribute("href", /^https:\/\/waze\.com\/ul\?ll=46\.18/);
   await expect(team.locator("#fCal a").first()).toHaveAttribute("href", /calendar\.google\.com/);
   // Le bouton .ics pointe sur le fichier servi par le Worker (ouvre Calendrier, pas la fenêtre de partage)
-  await expect(team.locator("#fCal a", { hasText: ".ics" })).toHaveAttribute("href", "https://easyroute-fiches.piotrskotnicki.workers.dev/ics/" + url.split("#s=")[1]);
+  await expect(team.locator("#fCal a", { hasText: ".ics" })).toHaveAttribute("href", "https://api.easyroute.cloud/ics/" + url.split("#s=")[1]);
   await expect(team.locator("#fSheetSlot #sheet")).toBeVisible();
   // La fiche n'écrase pas la session de l'appareil
   expect(await team.evaluate(() => localStorage.getItem("easyroute.session"))).toBeNull();
@@ -173,7 +173,7 @@ test("la fiche ne montre que les liens d'itinéraire choisis pour le message", a
   await team.close();
 
   // Plus aucun lien : la rubrique Itinéraires disparaît de la fiche (même lien, mis à jour)
-  const stored = () => page.evaluate((id) => fetch("https://easyroute-fiches.piotrskotnicki.workers.dev/f/" + id).then((r) => r.text()), url.split("#s=")[1]);
+  const stored = () => page.evaluate((id) => fetch("https://api.easyroute.cloud/f/" + id).then((r) => r.text()), url.split("#s=")[1]);
   const before = await stored();
   for (const c of ["g", "gps"]) await page.locator(`#lk-loges-${c}`).setChecked(false);
   await expect.poll(stored).not.toBe(before);

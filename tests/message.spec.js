@@ -102,7 +102,7 @@ test("le message contient aussi un lien .ics court, qui suit les modifications",
   await page.click("#tabMsg");
   await expect(page.locator("#ficheOpen")).toHaveAttribute("href", /#s=/);
   const id = (await page.getAttribute("#ficheOpen", "href")).split("#s=")[1];
-  const icsUrl = `https://easyroute-fiches.piotrskotnicki.workers.dev/ics/${id}`;
+  const icsUrl = `https://api.easyroute.cloud/ics/${id}`;
   await expect.poll(() => message(page)).toContain("📆 Ajouter au calendrier (iPhone, Mac, Outlook) :\n" + icsUrl);
   const get = () => page.evaluate((u) => fetch(u).then((r) => r.text()), icsUrl);
   let ics = await get();
