@@ -49,6 +49,10 @@ test("agenda : lien Google Agenda et fichier .ics à l’heure de Paris", async 
   expect(ics).toContain("SUMMARY:Get-In — Concert Test");
   expect(ics).toContain("TRIGGER:-PT1H");
   for (const line of ics.split("\r\n")) expect(Buffer.byteLength(line)).toBeLessThanOrEqual(75);
+  // Durée de 10 h
+  await page.selectOption("#callDur", "10");
+  const [d10] = await Promise.all([page.waitForEvent("download"), page.click("#msgIcs")]);
+  expect(Buffer.concat(await (await d10.createReadStream()).toArray()).toString()).toContain("DTEND:20261024T163000Z");
   // Sans heure : journée entière
   await page.fill("#callTime", "");
   await page.dispatchEvent("#callTime", "change");
