@@ -1541,7 +1541,7 @@
   const siteBase = () => (/^https?:$/.test(location.protocol) && !/claude/.test(location.hostname) ? location.origin + location.pathname : SITE_URL);
   // Short links: the fiche is stored by our Cloudflare Worker, the link only carries its id (…/#s=k7Qp2xA9bC).
   // If the Worker can't be reached, the long self-contained link (…/#fiche=…) is used instead.
-  const SHORT_API = "https://easyroute-fiches.piotrskotnicki.workers.dev";
+  const SHORT_API = "https://api.easyroute.cloud";
   const shortIds = new Map(); // packed fiche -> id (links that can't be updated: older Worker without keys)
   let currentPacked = "", syncedPacked = "", shortTimer = 0, shortFailed = false;
   st.share = null; // { id, key }: the link of this job, kept with the session, updated in place

@@ -90,7 +90,7 @@ Ces fichiers ne servent qu’aux tests : le site lui-même n’a besoin d’aucu
 
 Le dossier `worker/` contient le code du service qui range les fiches partagées : un Cloudflare Worker relié à une base D1 (offre gratuite).
 
-- Adresse : `https://easyroute-fiches.piotrskotnicki.workers.dev` (constante `SHORT_API` dans `js/easyroute.js`).
+- Adresse : `https://api.easyroute.cloud` (constante `SHORT_API` dans `js/easyroute.js`), domaine personnalisé du Worker (onglet *Domains*). L’ancienne adresse `https://easyroute-fiches.piotrskotnicki.workers.dev` répond toujours, pour les liens déjà envoyés.
 - `POST /f` avec `{"d": "<fiche compressée>"}` renvoie `{"id": "…", "key": "…"}` ; `PUT /f/<id>` avec `{"d": …, "key": …}` met la fiche à jour sous le même lien ; `GET /f/<id>` renvoie la fiche ; `GET /ics/<id>` renvoie son événement d’agenda (.ics), envoyé par Easy Route avec la fiche (champ `ics`). Seul le site Easy Route peut créer ou modifier des fiches ; quiconque a le lien peut la lire.
 - Identifiant aléatoire de 10 caractères (impossible à deviner) ; la clé secrète n’est connue que de l’appareil qui a créé la fiche, la base n’en garde qu’une empreinte.
 - Fiches conservées environ 13 mois après leur dernière modification (`KEEP_DAYS`), puis effacées.

@@ -6,7 +6,7 @@ const QR_LIB = require.resolve("qrcode-generator/qrcode.js");
 
 // Faux service des liens courts (remplace le Worker Cloudflare pendant les tests)
 const shortStore = new Map();
-const WORKER = /easyroute-fiches\.[a-z0-9-]+\.workers\.dev/;
+const WORKER = /^https:\/\/api\.easyroute\.cloud\//;
 async function setupRoutes(context, { workerDown = false, legacyWorker = false } = {}) {
   // Pas d'appel aux services extérieurs pendant les tests : tuiles, géocodage, polices Google.
   await context.route(/arcgisonline|nominatim|photon|fonts\.(googleapis|gstatic)/, (r) => r.abort());
