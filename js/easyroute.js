@@ -1491,7 +1491,7 @@
   });
 
   // ---------- Shared fiche: the whole job packed into the link (…/#fiche=…), no server ----------
-  const SITE_URL = "https://fedorterrell.github.io/easyroute/";
+  const SITE_URL = "https://easyroute.cloud/";
   let ficheUrl = "", ficheTimer = 0, ficheMode = false, ficheLinks = null;
   const b64url = (bytes) => {
     let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
@@ -1545,7 +1545,7 @@
   const shortIds = new Map(); // packed fiche -> id (links that can't be updated: older Worker without keys)
   let currentPacked = "", syncedPacked = "", shortTimer = 0, shortFailed = false;
   st.share = null; // { id, key }: the link of this job, kept with the session, updated in place
-  const canShorten = () => location.hostname === "fedorterrell.github.io" || location.hostname === "localhost";
+  const canShorten = () => ["easyroute.cloud", "www.easyroute.cloud", "fedorterrell.github.io", "localhost"].includes(location.hostname);
   function setFicheUrl(url, state) {
     $("ficheOpen").href = url || "#";
     $("ficheCopy").disabled = !url;
