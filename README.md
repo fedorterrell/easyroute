@@ -2,7 +2,7 @@
 
 Une adresse, et vous obtenez un **plan d’accès A4**, une **étiquette QR** et un **message d’itinéraire** prêt à envoyer à l’équipe par WhatsApp ou e-mail.
 
-**➜ Utiliser l’outil : https://fedorterrell.github.io/easyroute/**
+**➜ Utiliser l’outil : https://easyroute.cloud**
 
 Pensé pour les équipes techniques de spectacle et d’événementiel : savoir où se garer, par où décharger, où sont les loges et le catering, sans dix messages d’explication.
 
@@ -29,7 +29,7 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 - Boutons *Copier*, *Ouvrir dans WhatsApp*, *Envoyer par e-mail* et, sur téléphone, *Partager* (message + plan A4 en une fois).
 
 **Fiche partagée**
-- Le message équipe contient un **lien de fiche** court (case à cocher), du type `fedorterrell.github.io/easyroute/#s=k7Qp2xA9bC`. L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans et coordonnées GPS pour le lieu et chaque point utile (les mêmes liens que ceux cochés pour le message), ajout à l’agenda, et le plan avec téléchargement en JPG.
+- Le message équipe contient un **lien de fiche** court (case à cocher), du type `easyroute.cloud/#s=k7Qp2xA9bC`. L’équipier qui l’ouvre voit une page simple sur son téléphone : événement, lieu, infos pratiques (téléphone du contact cliquable), boutons Google Maps / Waze / Plans et coordonnées GPS pour le lieu et chaque point utile (les mêmes liens que ceux cochés pour le message), ajout à l’agenda, et le plan avec téléchargement en JPG.
 - La fiche est rangée par un petit service Cloudflare (voir *Liens courts* plus bas) et conservée environ 13 mois après sa dernière modification. Le logo n’y figure pas.
 - **Le lien reste le même quand vous modifiez la fiche** : l’équipe voit toujours la dernière version (heure de Get-In corrigée, point ajouté…). *Nouveau lien* en crée un autre, par exemple pour une autre date au même lieu ; *Nouveau lieu* et le chargement d’un lieu enregistré en créent un aussi. Seul l’appareil qui a créé le lien peut le modifier (clé secrète gardée avec la session).
 - Sur la fiche équipe, toucher le plan l’ouvre **en grand**, en haute définition, avec zoom.
@@ -66,7 +66,7 @@ Le bouton *Partager* envoie le plan A4 et le message ensemble vers WhatsApp, Mai
 | `Archive/` | Ancienne version de l’outil. |
 | `tests/`, `package.json`, `playwright.config.js`, `.github/workflows/` | Tests automatiques (voir ci-dessous). |
 
-Le site est servi par GitHub Pages depuis la branche `main` : chaque fusion sur `main` met le site à jour en une à deux minutes. Aucune étape de compilation : les fichiers sont servis tels quels.
+Le site est servi par GitHub Pages depuis la branche `main`, sous le domaine `easyroute.cloud` (fichier `CNAME` ; DNS chez Cloudflare, lignes GitHub en *DNS only*). Les anciennes adresses `fedorterrell.github.io/easyroute/…` redirigent vers le domaine. Chaque fusion sur `main` met le site à jour en une à deux minutes. Aucune étape de compilation : les fichiers sont servis tels quels.
 
 Quand `css/easyroute.css` ou `js/easyroute.js` change, changez aussi le numéro `?v=…` qui suit leur nom dans `index.html` (par exemple la date du jour). Sinon, un téléphone peut garder l’ancienne version en mémoire quelques minutes.
 

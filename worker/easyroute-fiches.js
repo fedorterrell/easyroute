@@ -16,7 +16,7 @@
 // l'appareil qui l'a créée connaît : lui seul peut la modifier ensuite. La base ne garde qu'une
 // empreinte SHA-256 de la clé, jamais la clé elle-même.
 
-const DEFAULT_ORIGINS = ["https://fedorterrell.github.io"];
+const DEFAULT_ORIGINS = ["https://easyroute.cloud", "https://www.easyroute.cloud", "https://fedorterrell.github.io"];
 const MAX_LENGTH = 48 * 1024;             // une fiche fait environ 1 Ko, son .ics quelques Ko
 const KEEP_DAYS = 400;                    // durée de conservation après la dernière modification
 const ID_LENGTH = 10;                     // 62^10 combinaisons
