@@ -58,6 +58,7 @@ const fixture = (name) => path.join(__dirname, "fixtures", name);
 
 // Toucher le plan à une position relative (0..1)
 async function tapSheet(page, fx, fy) {
+  await page.locator("#sheet").scrollIntoViewIfNeeded();
   const box = await page.locator("#sheet").boundingBox();
   await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
 }

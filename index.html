@@ -17,13 +17,30 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600&family=JetBrains+Mono:wght@400&display=swap">
 <!-- ?v= : à changer à chaque mise à jour des fichiers, pour que les téléphones rechargent la nouvelle version -->
-<link rel="stylesheet" href="css/easyroute.css?v=2026.10.28b">
+<link rel="stylesheet" href="css/easyroute.css?v=2026.10.28c">
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Easy Route !</h1>
     <p>Une adresse, et vous obtenez un plan A4, une étiquette QR et un message pour l’équipe.</p>
+    <button type="button" class="btn sm guide-open" id="guideOpen" hidden>Premiers pas</button>
+    <section class="guide" id="guide" aria-labelledby="guideTitle" hidden>
+      <div class="guide-head">
+        <h2 id="guideTitle">Premiers pas</h2>
+        <p class="hint" id="guideLead">Quatre étapes pour envoyer un lieu à l’équipe. Elles se cochent au fur et à mesure.</p>
+        <div class="actions">
+          <button type="button" class="btn sm primary" id="guideDemo">Voir un exemple</button>
+          <button type="button" class="btn sm" id="guideClose">Fermer</button>
+        </div>
+      </div>
+      <ol class="guide-steps">
+        <li><button type="button" data-step="place"><span class="gnum" aria-hidden="true">1</span><span><b>Chercher le lieu</b><small>Tapez le nom de la salle, puis choisissez-la dans la liste.</small></span></button></li>
+        <li><button type="button" data-step="pin"><span class="gnum" aria-hidden="true">2</span><span><b>Vérifier le repère</b><small>Sur le plan, faites glisser le repère rouge s’il est mal placé.</small></span></button></li>
+        <li><button type="button" data-step="pois"><span class="gnum" aria-hidden="true">3</span><span><b>Placer les points utiles</b><small>Déchargement, accès personnel, parking… avec « Placer ».</small></span></button></li>
+        <li><button type="button" data-step="send"><span class="gnum" aria-hidden="true">4</span><span><b>Envoyer à l’équipe</b><small>Onglet « Message équipe » : WhatsApp, e-mail ou Copier.</small></span></button></li>
+      </ol>
+    </section>
   </header>
 
   <div class="grid">
@@ -362,6 +379,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-<script src="js/easyroute.js?v=2026.10.28b"></script>
+<script src="js/easyroute.js?v=2026.10.28c"></script>
 </body>
 </html>

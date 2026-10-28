@@ -43,6 +43,9 @@ Pensé pour les équipes techniques de spectacle et d’événementiel : savoir 
 
 ## Utilisation
 
+À la première ouverture, un encadré **Premiers pas** rappelle les quatre étapes (chercher le lieu, vérifier le repère, placer les points utiles, envoyer à l’équipe) et les coche au fur et à mesure ; un clic sur une étape mène à l’endroit où la faire. **Voir un exemple** charge une fiche complète de démonstration (points utiles, flèche, infos pratiques) pour découvrir l’outil. Le bouton *Premiers pas*, en haut, rouvre l’encadré une fois fermé.
+
+
 1. Tapez le nom du lieu et choisissez-le dans la liste proposée : l’adresse et la position se remplissent. Sinon, saisissez l’adresse : la carte se centre toute seule après une seconde. Un lien Google Maps complet collé dans *Lien personnalisé* remplit aussi le nom, l’adresse et la position.
 2. Vérifiez le repère rouge et faites-le glisser si besoin.
 3. Placez les points utiles (*Placer*, puis touchez le plan) et dessinez des flèches si utile.
