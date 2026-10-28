@@ -24,6 +24,7 @@ test("couleurs des points : choix, puis retour aux couleurs par défaut", async 
 test("le repère rouge se déplace en le faisant glisser, et les liens suivent", async ({ page }) => {
   await page.click('#appSeg [data-v="waze"]');
   const before = await page.inputValue("#coords");
+  await page.locator("#sheet").scrollIntoViewIfNeeded();
   const box = await page.locator("#sheet").boundingBox();
   const x = box.x + box.width / 2, headY = box.y + box.height / 2 - box.width * (9 * 0.64 / 297);
   await page.mouse.move(x, headY);
